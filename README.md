@@ -7,9 +7,8 @@ It supports real-time sync, partial payment tracking, and yearly financial stati
 🔗 LIVE APP: Click here to open
 
 
-━━━━━━━━━━━━━━━━━━━━━━
+
 🚀 KEY FEATURES
-━━━━━━━━━━━━━━━━━━━━━━
 
 ✅ Smart Calculation  
 • Automatically splits bills based on family member counts  
