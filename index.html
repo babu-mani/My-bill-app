@@ -1,5 +1,5 @@
 <!-- 
-    Bill Splitter App v6 (Persistent History & Reminders)
+    Bill Splitter App v10.0 (PARTIAL PAYMENTS + CLOUD LEDGER)
     Developed by Babu Mani (@ChartWizMani)
 -->
 <!DOCTYPE html>
@@ -7,7 +7,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bill Splitter - By Babu Mani</title>
+    <title>Bill Splitter - Ledger</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -16,6 +16,10 @@
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- FIREBASE (Stable Version 8) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
     <!-- Styles -->
     <style>
@@ -27,19 +31,15 @@
         .tab-inactive { color: #64748b; }
         .history-card { transition: all 0.2s; }
         .history-expanded { border: 1px solid #3b82f6; background-color: #eff6ff; }
+        .status-badge { font-size: 0.7rem; font-weight: bold; padding: 2px 6px; border-radius: 999px; }
+        .modal-overlay { background-color: rgba(0,0,0,0.5); position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; }
     </style>
-
-    <!-- Security -->
-    <script>
-        document.addEventListener('contextmenu', event => event.preventDefault());
-        document.onkeydown = function(e) { if(e.keyCode == 123) return false; }
-    </script>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useRef } = React;
 
         // --- Icons ---
         const Icons = {
@@ -49,13 +49,16 @@
             Plus: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>,
             Copy: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>,
             Settings: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
-            Share: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" x2="12" y1="2" y2="15"/></svg>,
             Save: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>,
             Download: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>,
             History: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>,
             Send: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
             ChevronDown: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>,
-            ChevronUp: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+            ChevronUp: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>,
+            Cloud: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.5 19c0-3.037-2.463-5.5-5.5-5.5S6.5 15.963 6.5 19"/><path d="M19 19V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v14"/><path d="M12 10v4"/><path d="M12 2v3"/></svg>,
+            CloudOff: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="2" y1="2" x2="22" y2="22"/><path d="M5.034 5.034A2 2 0 0 0 5 6v11a2 2 0 0 0 2 2h12a2 2 0 0 0 1.926-.854"/><path d="M19 11V6a2 2 0 0 0-2-2H9.83"/></svg>,
+            Chart: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg>,
+            List: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
         };
 
         const DEFAULT_MEMBERS = [
@@ -70,6 +73,7 @@
         function App() {
             // State
             const [activeTab, setActiveTab] = useState('calc'); 
+            const [historyView, setHistoryView] = useState('list');
             const [waterBill, setWaterBill] = useState('');
             const [motorBill, setMotorBill] = useState('');
             const [tankerBill, setTankerBill] = useState('');
@@ -79,45 +83,107 @@
             const [result, setResult] = useState(null);
             const [showSettings, setShowSettings] = useState(false);
             const [history, setHistory] = useState([]);
-            const [expandedHistory, setExpandedHistory] = useState(null); // Track which history item is open
+            const [expandedHistory, setExpandedHistory] = useState(null);
+            
+            // Payment Modal
+            const [paymentModal, setPaymentModal] = useState({ show: false, historyIdx: null, memberIdx: null, currentPaid: 0, total: 0, name: '' });
+            
+            // Cloud State
+            const [showCloudSetup, setShowCloudSetup] = useState(false);
+            const [cloudConfig, setCloudConfig] = useState({ apiKey: '', projectId: '' });
+            const [isCloudActive, setIsCloudActive] = useState(false);
+            const [syncStatus, setSyncStatus] = useState('');
 
-            // Load Data & Inputs
+            // 1. Initial Load
             useEffect(() => {
-                const savedData = localStorage.getItem('billSplitterData_v6'); // Version 6
-                const savedHistory = localStorage.getItem('billSplitterHistory');
+                const loadSafe = (key) => { try { return JSON.parse(localStorage.getItem(key)) } catch (e) { return null; }};
+                const savedData = loadSafe('billSplitterData_v10'); // New Version
+                const savedHistory = loadSafe('billSplitterHistory');
+                const savedCloud = loadSafe('billSplitterCloudConfig');
                 
                 if (savedData) {
-                    const parsed = JSON.parse(savedData);
-                    if(parsed.members) setMembers(parsed.members);
-                    if(parsed.houseRate) setHouseRate(parsed.houseRate);
-                    if(parsed.shopRate) setShopRate(parsed.shopRate);
-                    // RESTORE INPUTS IF EXIST
-                    if(parsed.waterBill) setWaterBill(parsed.waterBill);
-                    if(parsed.motorBill) setMotorBill(parsed.motorBill);
-                    if(parsed.tankerBill) setTankerBill(parsed.tankerBill);
+                    if(savedData.members) setMembers(savedData.members);
+                    if(savedData.houseRate) setHouseRate(savedData.houseRate);
+                    if(savedData.shopRate) setShopRate(savedData.shopRate);
+                    if(savedData.waterBill) setWaterBill(savedData.waterBill);
+                    if(savedData.motorBill) setMotorBill(savedData.motorBill);
+                    if(savedData.tankerBill) setTankerBill(savedData.tankerBill);
                 }
-                if (savedHistory) setHistory(JSON.parse(savedHistory));
+                // Migrate old history format if needed
+                if (savedHistory) {
+                    const migratedHistory = savedHistory.map(h => ({
+                        ...h,
+                        breakdown: h.breakdown.map(b => ({
+                            ...b,
+                            // Ensure paidAmount exists. If paid=true, set to full amount, else 0
+                            paidAmount: b.paidAmount !== undefined ? b.paidAmount : (b.paid ? b.amount : 0)
+                        }))
+                    }));
+                    setHistory(migratedHistory);
+                }
                 
-                if (window.location.hash.length > 1) {
-                    try {
-                        const decoded = JSON.parse(atob(window.location.hash.substring(1)));
-                        if (confirm("Load settings from link?")) {
-                            if(decoded.members) setMembers(decoded.members);
-                            if(decoded.houseRate) setHouseRate(decoded.houseRate);
-                            if(decoded.shopRate) setShopRate(decoded.shopRate);
-                            window.history.pushState("", document.title, window.location.pathname + window.location.search);
-                        }
-                    } catch(e) {}
+                if (savedCloud) {
+                    setCloudConfig(savedCloud);
+                    if(savedCloud.apiKey && savedCloud.projectId) initializeFirebase(savedCloud);
                 }
             }, []);
 
-            // Save Data & Inputs
+            // 2. Data Persistence (Local + Cloud Sync)
             useEffect(() => {
                 const dataToSave = { members, houseRate, shopRate, waterBill, motorBill, tankerBill };
-                localStorage.setItem('billSplitterData_v6', JSON.stringify(dataToSave));
+                localStorage.setItem('billSplitterData_v10', JSON.stringify(dataToSave));
                 localStorage.setItem('billSplitterHistory', JSON.stringify(history));
-            }, [members, houseRate, shopRate, history, waterBill, motorBill, tankerBill]);
 
+                if (isCloudActive && window.firebaseApp) {
+                    const saveDataToCloud = async () => {
+                        setSyncStatus('Syncing...');
+                        try {
+                            const db = firebase.firestore();
+                            await db.collection("bills").doc("current_data").set(dataToSave);
+                            // Only sync history if not deleting
+                            setSyncStatus('Synced ✅');
+                            setTimeout(() => setSyncStatus(''), 2000);
+                        } catch (e) {
+                            console.error("Sync Error", e);
+                            setSyncStatus('Sync Failed ❌');
+                        }
+                    };
+                    const timeout = setTimeout(saveDataToCloud, 2000); 
+                    return () => clearTimeout(timeout);
+                }
+            }, [members, houseRate, shopRate, waterBill, motorBill, tankerBill]); 
+
+            // 3. Initialize Firebase
+            const initializeFirebase = (config) => {
+                if (!window.firebaseApp) {
+                    try {
+                        if (typeof firebase === 'undefined') { alert("Cloud module loading... Check internet."); return; }
+                        if (!firebase.apps.length) window.firebaseApp = firebase.initializeApp(config);
+                        else window.firebaseApp = firebase.app();
+
+                        const db = firebase.firestore();
+                        setIsCloudActive(true);
+                        
+                        db.collection("bills").doc("current_data").onSnapshot((doc) => { if (doc.exists()) { /* Sync logic */ } });
+                        db.collection("bills").doc("history").onSnapshot((doc) => { 
+                            if(doc.exists() && doc.data().records) setHistory(doc.data().records); 
+                        });
+                    } catch (e) {
+                        alert("Error connecting to Cloud. Check keys.");
+                        setIsCloudActive(false);
+                    }
+                } else {
+                    setIsCloudActive(true);
+                }
+            };
+
+            const handleCloudSubmit = () => {
+                localStorage.setItem('billSplitterCloudConfig', JSON.stringify(cloudConfig));
+                initializeFirebase(cloudConfig);
+                setShowCloudSetup(false);
+            };
+
+            // Main Functions
             const handleAddMember = () => setMembers([...members, { id: Date.now(), unit: '', name: '', type: 'family', count: 1 }]);
             const handleRemoveMember = (id) => setMembers(members.filter(m => m.id !== id));
             const handleUpdateMember = (id, field, value) => setMembers(members.map(m => m.id === id ? { ...m, [field]: value } : m));
@@ -127,7 +193,6 @@
                 const motor = parseFloat(motorBill) || 0;
                 const tanker = parseFloat(tankerBill) || 0;
                 const totalBill = water + motor + tanker;
-
                 let fixedCollection = 0;
                 let totalVariableMembers = 0;
                 const hRate = parseFloat(houseRate) || 0;
@@ -140,99 +205,199 @@
                 });
 
                 let finalHRate = hRate, finalSRate = sRate, perPerson = 0, remaining = 0;
-
                 if (totalBill <= fixedCollection) {
                     const scale = fixedCollection > 0 ? totalBill / fixedCollection : 0;
-                    finalHRate = hRate * scale;
-                    finalSRate = sRate * scale;
+                    finalHRate = hRate * scale; finalSRate = sRate * scale;
                 } else {
-                    remaining = totalBill - fixedCollection;
-                    perPerson = totalVariableMembers > 0 ? remaining / totalVariableMembers : 0;
+                    remaining = totalBill - fixedCollection; perPerson = totalVariableMembers > 0 ? remaining / totalVariableMembers : 0;
                 }
 
                 const breakdown = members.map(m => {
                     let amount = 0, detail = '';
                     if (m.type === 'house') { amount = finalHRate; detail = 'Fixed House'; }
-                    else if (m.type === 'shop') { amount = finalShopRate; detail = 'Fixed Shop'; }
+                    else if (m.type === 'shop') { amount = finalSRate; detail = 'Fixed Shop'; }
                     else if (m.type === 'vacant') { amount = 0; detail = 'Vacant'; }
-                    else { amount = (parseInt(m.count) || 0) * perPerson; detail = `${m.count} members`; }
-                    return { ...m, amount, detail };
+                    else { amount = (parseInt(m.count) || 0) * perPerson; detail = `${m.count} members × ₹${perPerson.toFixed(2)}`; }
+                    return { ...m, amount, detail, paidAmount: 0 }; 
                 });
-
                 setResult({ totalBill, perPerson, breakdown, water, motor, tanker, date: new Date().toLocaleString() });
             };
 
-            const saveToHistory = () => {
-                if(!result) return;
-                const newHistory = [result, ...history];
-                setHistory(newHistory);
-                alert("Saved to History tab!");
+            // --- CLOUD HISTORY MANAGER ---
+            const updateCloudHistory = async (newHistory) => {
+                setHistory(newHistory); // Instant Local Update
+                if (isCloudActive && window.firebaseApp) {
+                    try {
+                        const db = firebase.firestore();
+                        await db.collection("bills").doc("history").set({ records: newHistory });
+                    } catch (e) { console.error("Cloud Error", e); }
+                }
             };
 
-            const downloadExcel = () => {
-                if(history.length === 0) return alert("No history to export.");
-                let csvContent = "data:text/csv;charset=utf-8,";
-                csvContent += "Date,Total Bill,Water,Motor,Tanker,Family Rate,Unit,Name,Amount\n";
-                history.forEach(record => {
-                    record.breakdown.forEach(b => {
-                        const row = [record.date.replace(',',''), record.totalBill, record.water, record.motor, record.tanker, record.perPerson.toFixed(2), b.unit || '', b.name || '', Math.round(b.amount)].join(",");
-                        csvContent += row + "\n";
-                    });
+            const saveToHistory = () => { if(!result) return; updateCloudHistory([result, ...history]); alert("Saved to History!"); };
+            
+            const deleteHistory = (i, e) => { 
+                e.stopPropagation(); 
+                if(confirm("Delete this record permanently?")) {
+                    const newHistory = history.filter((_, idx) => idx !== i);
+                    updateCloudHistory(newHistory);
+                }
+            };
+
+            // --- PARTIAL PAYMENT LOGIC ---
+            const openPaymentModal = (hIdx, mIdx, item, e) => {
+                e.stopPropagation();
+                setPaymentModal({
+                    show: true,
+                    historyIdx: hIdx,
+                    memberIdx: mIdx,
+                    currentPaid: item.paidAmount || 0,
+                    total: item.amount,
+                    name: item.name
                 });
-                const link = document.createElement("a");
-                link.setAttribute("href", encodeURI(csvContent));
-                link.setAttribute("download", "billing_history.csv");
-                document.body.appendChild(link); link.click();
             };
 
+            const savePayment = (amount) => {
+                const newPaid = parseFloat(amount) || 0;
+                const updatedHistory = [...history];
+                updatedHistory[paymentModal.historyIdx].breakdown[paymentModal.memberIdx].paidAmount = newPaid;
+                updateCloudHistory(updatedHistory);
+                setPaymentModal({ ...paymentModal, show: false });
+            };
+
+            // --- EXPORT & SHARE ---
+            const downloadExcel = () => {
+                let csv = "Date,Total,Water,Motor,Tanker,Rate,Unit,Name,Amount,Paid,Status\n";
+                history.forEach(r => r.breakdown.forEach(b => {
+                    const status = b.paidAmount >= b.amount ? 'PAID' : (b.paidAmount > 0 ? 'PARTIAL' : 'PENDING');
+                    csv += `${r.date.replace(',','')},${r.totalBill},${r.water},${r.motor},${r.tanker},${r.perPerson.toFixed(2)},${b.unit||''},${b.name||''},${Math.round(b.amount)},${b.paidAmount},${status}\n`;
+                }));
+                const link = document.createElement("a"); link.href = encodeURI("data:text/csv;charset=utf-8,"+csv); link.download = "history.csv"; link.click();
+            };
+            
             const sendIndividualReminder = (item, billDate) => {
                 if(item.amount <= 0) return;
-                const dateText = billDate ? ` (Bill Date: ${billDate.split(',')[0]})` : '';
-                const text = `Hi ${item.name} (${item.unit}), your utility bill share${dateText} is ₹${Math.round(item.amount)}. Please pay at your earliest convenience.`;
-                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+                const due = item.amount - (item.paidAmount || 0);
+                const msg = `Hi ${item.name} (${item.unit}), bill share${billDate?` (${billDate.split(',')[0]})`:''} total is ₹${Math.round(item.amount)}. You have paid ₹${item.paidAmount||0}. Remaining Due: ₹${Math.round(due)}. Please pay.`;
+                window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
             };
-
-            const shareSetup = () => {
-                const url = window.location.href.split('#')[0] + '#' + btoa(JSON.stringify({ members, houseRate, shopRate }));
-                const textArea = document.createElement("textarea"); textArea.value = url; document.body.appendChild(textArea); textArea.select();
-                try { document.execCommand('copy'); alert('Setup Link Copied!'); } catch (e) {}
-                document.body.removeChild(textArea);
+            
+            const shareFullBill = () => {
+                let text = ``;
+                if(result.water > 0) text += `Water Bill: ₹${result.water}\n`;
+                if(result.motor > 0) text += `Motor Bill: ₹${result.motor}\n`;
+                if(result.tanker > 0) text += `Tanker Bill: ₹${result.tanker}\n`;
+                const monthName = new Date().toLocaleString('default', { month: 'long' });
+                text += `\n*Bill - ${monthName}*\n`;
+                text += `Total: ₹${result.totalBill}\n`;
+                if(result.perPerson > 0) text += `Rate: ₹${result.perPerson.toFixed(2)}/head\n\n`;
+                result.breakdown.forEach(i => {
+                    const unitPart = i.unit ? `${i.unit} ` : '';
+                    const namePart = i.name || 'Unknown';
+                    text += `${unitPart}${namePart}: ₹${Math.round(i.amount)}\n`;
+                });
+                const t = document.createElement("textarea"); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); alert('Copied!');
             };
-
+            
             const reset = () => { if(confirm("Reset all?")) { setMembers(DEFAULT_MEMBERS); setWaterBill(''); setMotorBill(''); setTankerBill(''); setResult(null); }};
-            const deleteHistory = (index, e) => { e.stopPropagation(); if(confirm("Delete this record?")) { setHistory(history.filter((_, i) => i !== index)); }};
+
+            // Stats Logic
+            const calculateStats = () => {
+                const stats = { water: 0, motor: 0, tanker: 0, grand: 0, members: {} };
+                history.forEach(h => {
+                    stats.water += parseFloat(h.water || 0);
+                    stats.motor += parseFloat(h.motor || 0);
+                    stats.tanker += parseFloat(h.tanker || 0);
+                    stats.grand += parseFloat(h.totalBill || 0);
+                    h.breakdown.forEach(b => {
+                        const key = b.unit ? `${b.unit} ${b.name}` : b.name;
+                        if(!stats.members[key]) stats.members[key] = { amount: 0, paid: 0 };
+                        stats.members[key].amount += b.amount;
+                        stats.members[key].paid += (b.paidAmount || 0);
+                    });
+                });
+                return stats;
+            };
+            const stats = calculateStats();
 
             return (
                 <div className="min-h-screen font-sans p-3 md:p-6 max-w-2xl mx-auto text-slate-900 pb-20">
                     <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
-                        
                         {/* HEADER */}
                         <div className="bg-blue-600 p-6 text-white flex justify-between items-center">
-                            <div><h1 className="text-2xl font-bold">Bill Splitter</h1><p className="text-blue-100 opacity-90 text-sm">Manager Edition</p></div>
+                            <div><h1 className="text-2xl font-bold">Bill Splitter</h1><p className="text-blue-100 opacity-90 text-sm">Ledger Edition {isCloudActive && '⚡'}</p></div>
                             <div className="flex gap-2">
-                                <button onClick={shareSetup} className="p-2 bg-blue-500 rounded-full hover:bg-blue-400" title="Share Setup"><Icons.Share /></button>
+                                <button onClick={()=>setShowCloudSetup(true)} className={`p-2 rounded-full transition ${isCloudActive ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-500 hover:bg-blue-400'}`} title="Cloud Setup">{isCloudActive ? <Icons.Cloud /> : <Icons.CloudOff />}</button>
                                 <button onClick={reset} className="p-2 bg-blue-500 rounded-full hover:bg-blue-400" title="Reset"><Icons.Reset /></button>
                             </div>
                         </div>
 
-                        {/* TABS */}
+                        {/* CLOUD SETUP MODAL */}
+                        {showCloudSetup && (
+                            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                                <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl">
+                                    <h2 className="text-xl font-bold mb-4">☁️ Cloud Setup</h2>
+                                    <div className="space-y-3">
+                                        <div><label className="text-xs font-bold text-slate-500">API Key</label><input type="text" value={cloudConfig.apiKey} onChange={e=>setCloudConfig({...cloudConfig, apiKey: e.target.value})} className="w-full p-2 border rounded" placeholder="AIzaSy..." /></div>
+                                        <div><label className="text-xs font-bold text-slate-500">Project ID</label><input type="text" value={cloudConfig.projectId} onChange={e=>setCloudConfig({...cloudConfig, projectId: e.target.value})} className="w-full p-2 border rounded" placeholder="familybills-123" /></div>
+                                    </div>
+                                    <div className="mt-6 flex gap-2">
+                                        <button onClick={()=>setShowCloudSetup(false)} className="flex-1 py-2 text-slate-500 font-bold">Cancel</button>
+                                        <button onClick={handleCloudSubmit} className="flex-1 py-2 bg-blue-600 text-white rounded-lg font-bold">Connect</button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* PAYMENT MODAL */}
+                        {paymentModal.show && (
+                            <div className="modal-overlay">
+                                <div className="bg-white rounded-xl p-6 w-full max-w-xs shadow-2xl animate-in fade-in zoom-in">
+                                    <h3 className="text-lg font-bold mb-1">Manage Payment</h3>
+                                    <p className="text-sm text-slate-500 mb-4">{paymentModal.name}</p>
+                                    
+                                    <div className="bg-slate-50 p-3 rounded mb-4 text-center">
+                                        <div className="text-xs text-slate-400 uppercase">Total Due</div>
+                                        <div className="text-2xl font-bold">₹{Math.round(paymentModal.total)}</div>
+                                    </div>
+
+                                    <div className="mb-4">
+                                        <label className="text-xs font-bold text-slate-500">Paid Amount (₹)</label>
+                                        <input 
+                                            type="number" 
+                                            autoFocus
+                                            value={paymentModal.currentPaid} 
+                                            onChange={(e) => setPaymentModal({...paymentModal, currentPaid: e.target.value})}
+                                            className="w-full text-xl p-2 border-b-2 border-blue-500 outline-none text-center font-bold" 
+                                        />
+                                    </div>
+
+                                    <div className="flex gap-2">
+                                        <button onClick={()=>savePayment(0)} className="flex-1 py-2 bg-red-100 text-red-600 rounded font-bold text-xs">Unpaid</button>
+                                        <button onClick={()=>savePayment(paymentModal.total)} className="flex-1 py-2 bg-green-100 text-green-600 rounded font-bold text-xs">Full</button>
+                                    </div>
+                                    <button onClick={()=>savePayment(paymentModal.currentPaid)} className="w-full mt-3 py-3 bg-blue-600 text-white rounded-lg font-bold">Save Payment</button>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="flex border-b border-slate-200">
                             <button onClick={()=>setActiveTab('calc')} className={`flex-1 py-3 text-center ${activeTab==='calc'?'tab-active':'tab-inactive'}`}>Calculator</button>
                             <button onClick={()=>setActiveTab('history')} className={`flex-1 py-3 text-center ${activeTab==='history'?'tab-active':'tab-inactive'}`}>History ({history.length})</button>
                         </div>
 
                         <div className="p-5 space-y-6">
+                            {syncStatus && <div className="text-xs text-center text-slate-400 italic">{syncStatus}</div>}
                             
-                            {/* CALCULATOR TAB */}
                             {activeTab === 'calc' && (
                                 <>
                                     <section className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                                         <h2 className="text-md font-bold text-slate-700 mb-3">1. Bill Amounts</h2>
                                         <div className="grid grid-cols-2 gap-3 mb-3">
-                                            <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Water Bill</label><input type="number" value={waterBill} onChange={e=>setWaterBill(e.target.value)} className="w-full text-xl p-2 rounded-lg border border-slate-300 outline-none" placeholder="0" /></div>
-                                            <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Motor Bill</label><input type="number" value={motorBill} onChange={e=>setMotorBill(e.target.value)} className="w-full text-xl p-2 rounded-lg border border-slate-300 outline-none" placeholder="0" /></div>
+                                            <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Water</label><input type="number" value={waterBill} onChange={e=>setWaterBill(e.target.value)} className="w-full text-xl p-2 rounded-lg border border-slate-300 outline-none" placeholder="0" /></div>
+                                            <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Motor</label><input type="number" value={motorBill} onChange={e=>setMotorBill(e.target.value)} className="w-full text-xl p-2 rounded-lg border border-slate-300 outline-none" placeholder="0" /></div>
                                         </div>
-                                        <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Water Supply / Tanker</label><input type="number" value={tankerBill} onChange={e=>setTankerBill(e.target.value)} className="w-full text-xl p-2 rounded-lg border border-slate-300 outline-none" placeholder="0" /></div>
+                                        <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Tanker</label><input type="number" value={tankerBill} onChange={e=>setTankerBill(e.target.value)} className="w-full text-xl p-2 rounded-lg border border-slate-300 outline-none" placeholder="0" /></div>
                                     </section>
 
                                     <section>
@@ -299,66 +464,83 @@
                             {/* HISTORY TAB */}
                             {activeTab === 'history' && (
                                 <div className="space-y-4">
-                                    <div className="flex justify-between items-center">
-                                        <h2 className="font-bold text-lg">Past Calculations</h2>
-                                        <button onClick={downloadExcel} className="flex items-center gap-1 text-xs bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700"><Icons.Download /> Export CSV</button>
+                                    <div className="flex justify-between items-center mb-4">
+                                        <div className="flex bg-slate-100 rounded-lg p-1">
+                                            <button onClick={()=>setHistoryView('list')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition ${historyView==='list'?'bg-white shadow text-blue-600':'text-slate-500'}`}><Icons.List /> List</button>
+                                            <button onClick={()=>setHistoryView('stats')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition ${historyView==='stats'?'bg-white shadow text-blue-600':'text-slate-500'}`}><Icons.Chart /> Stats</button>
+                                        </div>
+                                        <button onClick={downloadExcel} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200"><Icons.Download /></button>
                                     </div>
-                                    {history.length === 0 ? (
-                                        <p className="text-center text-slate-400 py-10">No history saved yet.</p>
-                                    ) : (
-                                        history.map((h, idx) => (
-                                            <div key={idx} className={`bg-white border rounded-xl p-4 shadow-sm relative cursor-pointer history-card ${expandedHistory === idx ? 'history-expanded' : 'border-slate-200'}`} onClick={() => setExpandedHistory(expandedHistory === idx ? null : idx)}>
-                                                <button onClick={(e)=>deleteHistory(idx, e)} className="absolute top-2 right-2 text-slate-300 hover:text-red-500 z-10"><Icons.Trash /></button>
-                                                
-                                                {/* History Summary */}
-                                                <div className="pr-8">
-                                                    <div className="font-bold text-slate-700 mb-1 flex items-center gap-2">
-                                                        {h.date} 
-                                                        {expandedHistory === idx ? <Icons.ChevronUp /> : <Icons.ChevronDown />}
-                                                    </div>
-                                                    <div className="flex justify-between text-sm">
-                                                        <span className="text-slate-500">Total Bill:</span>
-                                                        <span className="font-bold">₹{h.totalBill}</span>
-                                                    </div>
-                                                </div>
 
-                                                {/* Expanded Details (For Reminders) */}
-                                                {expandedHistory === idx && (
-                                                    <div className="mt-4 pt-4 border-t border-slate-300 animate-in fade-in slide-in-from-top-1">
-                                                        <div className="text-xs text-slate-500 mb-3 bg-white p-2 rounded border">
-                                                            Water: {h.water} | Motor: {h.motor} | Tanker: {h.tanker}
+                                    {history.length === 0 ? <p className="text-center text-slate-400 py-10">No history saved yet.</p> : (
+                                        <>
+                                            {/* STATS VIEW */}
+                                            {historyView === 'stats' && (
+                                                <div className="animate-in fade-in space-y-4">
+                                                    <div className="bg-slate-800 text-white p-4 rounded-xl shadow-lg">
+                                                        <h3 className="text-sm font-bold text-slate-400 mb-2 uppercase">Total Expenses</h3>
+                                                        <div className="grid grid-cols-2 gap-4">
+                                                            <div><div className="text-xs text-slate-400">Total Water</div><div className="text-xl font-bold">₹{stats.water.toLocaleString()}</div></div>
+                                                            <div><div className="text-xs text-slate-400">Total Motor</div><div className="text-xl font-bold">₹{stats.motor.toLocaleString()}</div></div>
+                                                            <div><div className="text-xs text-slate-400">Total Tanker</div><div className="text-xl font-bold">₹{stats.tanker.toLocaleString()}</div></div>
+                                                            <div><div className="text-xs text-green-400">Grand Total</div><div className="text-xl font-bold text-green-400">₹{stats.grand.toLocaleString()}</div></div>
                                                         </div>
-                                                        <div className="divide-y divide-slate-200">
-                                                            {h.breakdown.map((item, i) => (
-                                                                <div key={i} className="py-2 flex justify-between items-center">
-                                                                    <div>
-                                                                        <div className="font-bold text-sm text-slate-700">{item.unit} {item.name}</div>
-                                                                    </div>
-                                                                    <div className="flex items-center gap-2">
-                                                                        <span className="font-bold text-sm">₹{Math.round(item.amount)}</span>
-                                                                        {item.amount > 0 && 
-                                                                            <button 
-                                                                                onClick={(e) => {
-                                                                                    e.stopPropagation(); // Prevent toggling accordion
-                                                                                    sendIndividualReminder(item, h.date);
-                                                                                }} 
-                                                                                className="p-1.5 bg-green-100 text-green-600 rounded-full hover:bg-green-200"
-                                                                            >
-                                                                                <Icons.Send />
-                                                                            </button>
-                                                                        }
+                                                    </div>
+
+                                                    <div className="bg-white border rounded-xl p-4 shadow-sm">
+                                                        <h3 className="text-sm font-bold text-slate-600 mb-3 uppercase">Member Shares (All Time)</h3>
+                                                        <div className="divide-y divide-slate-100">
+                                                            {Object.entries(stats.members).map(([name, data]) => (
+                                                                <div key={name} className="py-2 flex justify-between items-center">
+                                                                    <span className="font-bold text-slate-700 text-sm w-1/3">{name}</span>
+                                                                    <div className="flex flex-col items-end">
+                                                                        <span className="font-mono font-bold text-sm">₹{Math.round(data.amount).toLocaleString()}</span>
+                                                                        <span className="text-[10px] text-green-600">Paid: ₹{Math.round(data.paid).toLocaleString()}</span>
                                                                     </div>
                                                                 </div>
                                                             ))}
                                                         </div>
                                                     </div>
-                                                )}
-                                            </div>
-                                        ))
+                                                </div>
+                                            )}
+
+                                            {/* LIST VIEW */}
+                                            {historyView === 'list' && history.map((h, idx) => (
+                                                <div key={idx} className={`bg-white border rounded-xl p-4 shadow-sm relative cursor-pointer history-card ${expandedHistory === idx ? 'history-expanded' : 'border-slate-200'}`} onClick={() => setExpandedHistory(expandedHistory === idx ? null : idx)}>
+                                                    <button onClick={(e)=>deleteHistory(idx, e)} className="absolute top-2 right-2 text-slate-300 hover:text-red-500 z-10 p-2"><Icons.Trash /></button>
+                                                    <div className="pr-8"><div className="font-bold text-slate-700 mb-1 flex items-center gap-2">{h.date} {expandedHistory === idx ? <Icons.ChevronUp /> : <Icons.ChevronDown />}</div><div className="flex justify-between text-sm"><span className="text-slate-500">Total Bill:</span><span className="font-bold">₹{h.totalBill}</span></div></div>
+                                                    {expandedHistory === idx && (
+                                                        <div className="mt-4 pt-4 border-t border-slate-300 animate-in fade-in slide-in-from-top-1">
+                                                            <div className="text-xs text-slate-500 mb-3 bg-white p-2 rounded border">Water: {h.water} | Motor: {h.motor} | Tanker: {h.tanker}</div>
+                                                            <div className="divide-y divide-slate-200">{h.breakdown.map((item, i) => (
+                                                                <div key={i} className="py-2 flex justify-between items-center">
+                                                                    <div><div className="font-bold text-sm text-slate-700">{item.unit} {item.name}</div></div>
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className="text-right">
+                                                                            <div className="font-bold text-sm">₹{Math.round(item.amount)}</div>
+                                                                            {item.paidAmount > 0 && <div className={`text-[10px] font-bold ${item.paidAmount >= item.amount ? 'text-green-600' : 'text-orange-500'}`}>{item.paidAmount >= item.amount ? 'Paid' : `Due: ₹${Math.round(item.amount - item.paidAmount)}`}</div>}
+                                                                        </div>
+                                                                        {item.amount > 0 && (
+                                                                            <>
+                                                                                <button onClick={(e) => openPaymentModal(idx, i, item, e)} 
+                                                                                    className={`w-8 h-8 rounded-full flex items-center justify-center border status-btn ${item.paidAmount >= item.amount ? 'bg-green-100 border-green-500 text-green-700' : (item.paidAmount > 0 ? 'bg-orange-100 border-orange-400 text-orange-600' : 'bg-white border-red-200 text-red-300')}`}
+                                                                                >
+                                                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
+                                                                                </button>
+                                                                                <button onClick={(e) => {e.stopPropagation(); sendIndividualReminder(item, h.date);}} className="p-2 bg-slate-100 text-slate-600 rounded-full hover:bg-slate-200"><Icons.Send /></button>
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            ))}</div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </>
                                     )}
                                 </div>
                             )}
-
                         </div>
                     </div>
                     <div className="text-center mt-8 opacity-60"><p className="text-sm font-medium text-slate-500">Developed by Babu Mani (@ChartWizMani)</p></div>
