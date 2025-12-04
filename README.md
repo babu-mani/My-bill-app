@@ -4,7 +4,7 @@
 A smart, cloud-connected web application to calculate, track, and manage monthly utility bills (Water, Motor, Tanker) for building residents.  
 It supports real-time sync, partial payment tracking, and yearly financial statistics.
 
-🔗 LIVE APP: Click here to open
+🔗 LIVE APP: [Click here to open](https://babu-mani.github.io/My-bill-app/)
 
 
 ━━━━━━━━━━━━━━━━━━━━━━
