@@ -1,5 +1,5 @@
 <!-- 
-    Bill Splitter App v10.0 (PARTIAL PAYMENTS + CLOUD LEDGER)
+    Bill Splitter App v11.0 (Month Selector + Ledger Stats)
     Developed by Babu Mani (@ChartWizMani)
 -->
 <!DOCTYPE html>
@@ -7,7 +7,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bill Splitter - Ledger</title>
+    <title>Bill Splitter - Cloud</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -31,7 +31,8 @@
         .tab-inactive { color: #64748b; }
         .history-card { transition: all 0.2s; }
         .history-expanded { border: 1px solid #3b82f6; background-color: #eff6ff; }
-        .status-badge { font-size: 0.7rem; font-weight: bold; padding: 2px 6px; border-radius: 999px; }
+        .status-btn { transition: all 0.2s; }
+        .status-btn:active { transform: scale(0.9); }
         .modal-overlay { background-color: rgba(0,0,0,0.5); position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; }
     </style>
 </head>
@@ -71,12 +72,13 @@
         ];
 
         function App() {
-            // State
             const [activeTab, setActiveTab] = useState('calc'); 
             const [historyView, setHistoryView] = useState('list');
             const [waterBill, setWaterBill] = useState('');
             const [motorBill, setMotorBill] = useState('');
             const [tankerBill, setTankerBill] = useState('');
+            const [billMonth, setBillMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+            
             const [members, setMembers] = useState(DEFAULT_MEMBERS);
             const [houseRate, setHouseRate] = useState(500);
             const [shopRate, setShopRate] = useState(200);
@@ -85,19 +87,15 @@
             const [history, setHistory] = useState([]);
             const [expandedHistory, setExpandedHistory] = useState(null);
             
-            // Payment Modal
             const [paymentModal, setPaymentModal] = useState({ show: false, historyIdx: null, memberIdx: null, currentPaid: 0, total: 0, name: '' });
-            
-            // Cloud State
             const [showCloudSetup, setShowCloudSetup] = useState(false);
             const [cloudConfig, setCloudConfig] = useState({ apiKey: '', projectId: '' });
             const [isCloudActive, setIsCloudActive] = useState(false);
             const [syncStatus, setSyncStatus] = useState('');
 
-            // 1. Initial Load
             useEffect(() => {
                 const loadSafe = (key) => { try { return JSON.parse(localStorage.getItem(key)) } catch (e) { return null; }};
-                const savedData = loadSafe('billSplitterData_v10'); // New Version
+                const savedData = loadSafe('billSplitterData_v11');
                 const savedHistory = loadSafe('billSplitterHistory');
                 const savedCloud = loadSafe('billSplitterCloudConfig');
                 
@@ -108,30 +106,18 @@
                     if(savedData.waterBill) setWaterBill(savedData.waterBill);
                     if(savedData.motorBill) setMotorBill(savedData.motorBill);
                     if(savedData.tankerBill) setTankerBill(savedData.tankerBill);
+                    if(savedData.billMonth) setBillMonth(savedData.billMonth);
                 }
-                // Migrate old history format if needed
-                if (savedHistory) {
-                    const migratedHistory = savedHistory.map(h => ({
-                        ...h,
-                        breakdown: h.breakdown.map(b => ({
-                            ...b,
-                            // Ensure paidAmount exists. If paid=true, set to full amount, else 0
-                            paidAmount: b.paidAmount !== undefined ? b.paidAmount : (b.paid ? b.amount : 0)
-                        }))
-                    }));
-                    setHistory(migratedHistory);
-                }
-                
+                if (savedHistory) setHistory(savedHistory);
                 if (savedCloud) {
                     setCloudConfig(savedCloud);
                     if(savedCloud.apiKey && savedCloud.projectId) initializeFirebase(savedCloud);
                 }
             }, []);
 
-            // 2. Data Persistence (Local + Cloud Sync)
             useEffect(() => {
-                const dataToSave = { members, houseRate, shopRate, waterBill, motorBill, tankerBill };
-                localStorage.setItem('billSplitterData_v10', JSON.stringify(dataToSave));
+                const dataToSave = { members, houseRate, shopRate, waterBill, motorBill, tankerBill, billMonth };
+                localStorage.setItem('billSplitterData_v11', JSON.stringify(dataToSave));
                 localStorage.setItem('billSplitterHistory', JSON.stringify(history));
 
                 if (isCloudActive && window.firebaseApp) {
@@ -140,7 +126,6 @@
                         try {
                             const db = firebase.firestore();
                             await db.collection("bills").doc("current_data").set(dataToSave);
-                            // Only sync history if not deleting
                             setSyncStatus('Synced ✅');
                             setTimeout(() => setSyncStatus(''), 2000);
                         } catch (e) {
@@ -151,9 +136,8 @@
                     const timeout = setTimeout(saveDataToCloud, 2000); 
                     return () => clearTimeout(timeout);
                 }
-            }, [members, houseRate, shopRate, waterBill, motorBill, tankerBill]); 
+            }, [members, houseRate, shopRate, waterBill, motorBill, tankerBill, billMonth]); 
 
-            // 3. Initialize Firebase
             const initializeFirebase = (config) => {
                 if (!window.firebaseApp) {
                     try {
@@ -183,7 +167,6 @@
                 setShowCloudSetup(false);
             };
 
-            // Main Functions
             const handleAddMember = () => setMembers([...members, { id: Date.now(), unit: '', name: '', type: 'family', count: 1 }]);
             const handleRemoveMember = (id) => setMembers(members.filter(m => m.id !== id));
             const handleUpdateMember = (id, field, value) => setMembers(members.map(m => m.id === id ? { ...m, [field]: value } : m));
@@ -217,15 +200,22 @@
                     if (m.type === 'house') { amount = finalHRate; detail = 'Fixed House'; }
                     else if (m.type === 'shop') { amount = finalSRate; detail = 'Fixed Shop'; }
                     else if (m.type === 'vacant') { amount = 0; detail = 'Vacant'; }
-                    else { amount = (parseInt(m.count) || 0) * perPerson; detail = `${m.count} members × ₹${perPerson.toFixed(2)}`; }
+                    else { 
+                        amount = (parseInt(m.count) || 0) * perPerson; 
+                        detail = `${m.count} members × ₹${perPerson.toFixed(2)}`; 
+                    }
                     return { ...m, amount, detail, paidAmount: 0 }; 
                 });
-                setResult({ totalBill, perPerson, breakdown, water, motor, tanker, date: new Date().toLocaleString() });
+                
+                // Format Bill Month Name (e.g., "November 2025")
+                const [year, month] = billMonth.split('-');
+                const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+                
+                setResult({ totalBill, perPerson, breakdown, water, motor, tanker, date: new Date().toLocaleString(), billMonthName: monthName });
             };
 
-            // --- CLOUD HISTORY MANAGER ---
             const updateCloudHistory = async (newHistory) => {
-                setHistory(newHistory); // Instant Local Update
+                setHistory(newHistory); 
                 if (isCloudActive && window.firebaseApp) {
                     try {
                         const db = firebase.firestore();
@@ -236,25 +226,9 @@
 
             const saveToHistory = () => { if(!result) return; updateCloudHistory([result, ...history]); alert("Saved to History!"); };
             
-            const deleteHistory = (i, e) => { 
-                e.stopPropagation(); 
-                if(confirm("Delete this record permanently?")) {
-                    const newHistory = history.filter((_, idx) => idx !== i);
-                    updateCloudHistory(newHistory);
-                }
-            };
-
-            // --- PARTIAL PAYMENT LOGIC ---
             const openPaymentModal = (hIdx, mIdx, item, e) => {
                 e.stopPropagation();
-                setPaymentModal({
-                    show: true,
-                    historyIdx: hIdx,
-                    memberIdx: mIdx,
-                    currentPaid: item.paidAmount || 0,
-                    total: item.amount,
-                    name: item.name
-                });
+                setPaymentModal({ show: true, historyIdx: hIdx, memberIdx: mIdx, currentPaid: item.paidAmount || 0, total: item.amount, name: item.name });
             };
 
             const savePayment = (amount) => {
@@ -265,21 +239,21 @@
                 setPaymentModal({ ...paymentModal, show: false });
             };
 
-            // --- EXPORT & SHARE ---
+            const deleteHistory = (i, e) => { 
+                e.stopPropagation(); 
+                if(confirm("Delete this record permanently?")) {
+                    const newHistory = history.filter((_, idx) => idx !== i);
+                    updateCloudHistory(newHistory);
+                }
+            };
+
             const downloadExcel = () => {
-                let csv = "Date,Total,Water,Motor,Tanker,Rate,Unit,Name,Amount,Paid,Status\n";
+                let csv = "Bill Month,Date,Total,Water,Motor,Tanker,Rate,Unit,Name,Amount,Paid,Status\n";
                 history.forEach(r => r.breakdown.forEach(b => {
                     const status = b.paidAmount >= b.amount ? 'PAID' : (b.paidAmount > 0 ? 'PARTIAL' : 'PENDING');
-                    csv += `${r.date.replace(',','')},${r.totalBill},${r.water},${r.motor},${r.tanker},${r.perPerson.toFixed(2)},${b.unit||''},${b.name||''},${Math.round(b.amount)},${b.paidAmount},${status}\n`;
+                    csv += `${r.billMonthName || r.date},${r.date.replace(',','')},${r.totalBill},${r.water},${r.motor},${r.tanker},${r.perPerson.toFixed(2)},${b.unit||''},${b.name||''},${Math.round(b.amount)},${b.paidAmount},${status}\n`;
                 }));
                 const link = document.createElement("a"); link.href = encodeURI("data:text/csv;charset=utf-8,"+csv); link.download = "history.csv"; link.click();
-            };
-            
-            const sendIndividualReminder = (item, billDate) => {
-                if(item.amount <= 0) return;
-                const due = item.amount - (item.paidAmount || 0);
-                const msg = `Hi ${item.name} (${item.unit}), bill share${billDate?` (${billDate.split(',')[0]})`:''} total is ₹${Math.round(item.amount)}. You have paid ₹${item.paidAmount||0}. Remaining Due: ₹${Math.round(due)}. Please pay.`;
-                window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
             };
             
             const shareFullBill = () => {
@@ -287,33 +261,37 @@
                 if(result.water > 0) text += `Water Bill: ₹${result.water}\n`;
                 if(result.motor > 0) text += `Motor Bill: ₹${result.motor}\n`;
                 if(result.tanker > 0) text += `Tanker Bill: ₹${result.tanker}\n`;
-                const monthName = new Date().toLocaleString('default', { month: 'long' });
-                text += `\n*Bill - ${monthName}*\n`;
+                
+                text += `\n*Bill - ${result.billMonthName}*\n`;
                 text += `Total: ₹${result.totalBill}\n`;
                 if(result.perPerson > 0) text += `Rate: ₹${result.perPerson.toFixed(2)}/head\n\n`;
+                
                 result.breakdown.forEach(i => {
                     const unitPart = i.unit ? `${i.unit} ` : '';
                     const namePart = i.name || 'Unknown';
                     text += `${unitPart}${namePart}: ₹${Math.round(i.amount)}\n`;
                 });
+                
                 const t = document.createElement("textarea"); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); alert('Copied!');
             };
             
             const reset = () => { if(confirm("Reset all?")) { setMembers(DEFAULT_MEMBERS); setWaterBill(''); setMotorBill(''); setTankerBill(''); setResult(null); }};
 
-            // Stats Logic
+            // Stats Logic (Enhanced)
             const calculateStats = () => {
-                const stats = { water: 0, motor: 0, tanker: 0, grand: 0, members: {} };
+                const stats = { water: 0, motor: 0, tanker: 0, grand: 0, paidTotal: 0, members: {} };
                 history.forEach(h => {
                     stats.water += parseFloat(h.water || 0);
                     stats.motor += parseFloat(h.motor || 0);
                     stats.tanker += parseFloat(h.tanker || 0);
                     stats.grand += parseFloat(h.totalBill || 0);
+                    
                     h.breakdown.forEach(b => {
                         const key = b.unit ? `${b.unit} ${b.name}` : b.name;
                         if(!stats.members[key]) stats.members[key] = { amount: 0, paid: 0 };
                         stats.members[key].amount += b.amount;
                         stats.members[key].paid += (b.paidAmount || 0);
+                        stats.paidTotal += (b.paidAmount || 0);
                     });
                 });
                 return stats;
@@ -325,7 +303,7 @@
                     <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
                         {/* HEADER */}
                         <div className="bg-blue-600 p-6 text-white flex justify-between items-center">
-                            <div><h1 className="text-2xl font-bold">Bill Splitter</h1><p className="text-blue-100 opacity-90 text-sm">Ledger Edition {isCloudActive && '⚡'}</p></div>
+                            <div><h1 className="text-2xl font-bold">Bill Splitter</h1><p className="text-blue-100 opacity-90 text-sm">Cloud Accountant</p></div>
                             <div className="flex gap-2">
                                 <button onClick={()=>setShowCloudSetup(true)} className={`p-2 rounded-full transition ${isCloudActive ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-500 hover:bg-blue-400'}`} title="Cloud Setup">{isCloudActive ? <Icons.Cloud /> : <Icons.CloudOff />}</button>
                                 <button onClick={reset} className="p-2 bg-blue-500 rounded-full hover:bg-blue-400" title="Reset"><Icons.Reset /></button>
@@ -355,23 +333,14 @@
                                 <div className="bg-white rounded-xl p-6 w-full max-w-xs shadow-2xl animate-in fade-in zoom-in">
                                     <h3 className="text-lg font-bold mb-1">Manage Payment</h3>
                                     <p className="text-sm text-slate-500 mb-4">{paymentModal.name}</p>
-                                    
                                     <div className="bg-slate-50 p-3 rounded mb-4 text-center">
                                         <div className="text-xs text-slate-400 uppercase">Total Due</div>
                                         <div className="text-2xl font-bold">₹{Math.round(paymentModal.total)}</div>
                                     </div>
-
                                     <div className="mb-4">
                                         <label className="text-xs font-bold text-slate-500">Paid Amount (₹)</label>
-                                        <input 
-                                            type="number" 
-                                            autoFocus
-                                            value={paymentModal.currentPaid} 
-                                            onChange={(e) => setPaymentModal({...paymentModal, currentPaid: e.target.value})}
-                                            className="w-full text-xl p-2 border-b-2 border-blue-500 outline-none text-center font-bold" 
-                                        />
+                                        <input type="number" autoFocus value={paymentModal.currentPaid} onChange={(e) => setPaymentModal({...paymentModal, currentPaid: e.target.value})} className="w-full text-xl p-2 border-b-2 border-blue-500 outline-none text-center font-bold" />
                                     </div>
-
                                     <div className="flex gap-2">
                                         <button onClick={()=>savePayment(0)} className="flex-1 py-2 bg-red-100 text-red-600 rounded font-bold text-xs">Unpaid</button>
                                         <button onClick={()=>savePayment(paymentModal.total)} className="flex-1 py-2 bg-green-100 text-green-600 rounded font-bold text-xs">Full</button>
@@ -393,6 +362,13 @@
                                 <>
                                     <section className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                                         <h2 className="text-md font-bold text-slate-700 mb-3">1. Bill Amounts</h2>
+                                        
+                                        {/* NEW: Bill Month Selector */}
+                                        <div className="mb-4">
+                                            <label className="block text-xs font-bold text-blue-600 uppercase mb-1">Bill Month</label>
+                                            <input type="month" value={billMonth} onChange={(e) => setBillMonth(e.target.value)} className="w-full p-2 border-2 border-blue-100 rounded-lg font-bold text-slate-700 outline-none focus:border-blue-500" />
+                                        </div>
+
                                         <div className="grid grid-cols-2 gap-3 mb-3">
                                             <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Water</label><input type="number" value={waterBill} onChange={e=>setWaterBill(e.target.value)} className="w-full text-xl p-2 rounded-lg border border-slate-300 outline-none" placeholder="0" /></div>
                                             <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Motor</label><input type="number" value={motorBill} onChange={e=>setMotorBill(e.target.value)} className="w-full text-xl p-2 rounded-lg border border-slate-300 outline-none" placeholder="0" /></div>
@@ -480,25 +456,31 @@
                                                     <div className="bg-slate-800 text-white p-4 rounded-xl shadow-lg">
                                                         <h3 className="text-sm font-bold text-slate-400 mb-2 uppercase">Total Expenses</h3>
                                                         <div className="grid grid-cols-2 gap-4">
-                                                            <div><div className="text-xs text-slate-400">Total Water</div><div className="text-xl font-bold">₹{stats.water.toLocaleString()}</div></div>
-                                                            <div><div className="text-xs text-slate-400">Total Motor</div><div className="text-xl font-bold">₹{stats.motor.toLocaleString()}</div></div>
-                                                            <div><div className="text-xs text-slate-400">Total Tanker</div><div className="text-xl font-bold">₹{stats.tanker.toLocaleString()}</div></div>
-                                                            <div><div className="text-xs text-green-400">Grand Total</div><div className="text-xl font-bold text-green-400">₹{stats.grand.toLocaleString()}</div></div>
+                                                            <div><div className="text-xs text-slate-400">Total Billed</div><div className="text-xl font-bold">₹{stats.grand.toLocaleString()}</div></div>
+                                                            <div><div className="text-xs text-slate-400">Total Collected</div><div className="text-xl font-bold text-green-400">₹{stats.paidTotal.toLocaleString()}</div></div>
+                                                            <div className="col-span-2 pt-2 border-t border-slate-700 flex justify-between">
+                                                                <span className="text-xs text-red-400">Pending:</span>
+                                                                <span className="text-sm font-bold text-red-400">₹{(stats.grand - stats.paidTotal).toLocaleString()}</span>
+                                                            </div>
                                                         </div>
                                                     </div>
 
                                                     <div className="bg-white border rounded-xl p-4 shadow-sm">
                                                         <h3 className="text-sm font-bold text-slate-600 mb-3 uppercase">Member Shares (All Time)</h3>
                                                         <div className="divide-y divide-slate-100">
-                                                            {Object.entries(stats.members).map(([name, data]) => (
-                                                                <div key={name} className="py-2 flex justify-between items-center">
-                                                                    <span className="font-bold text-slate-700 text-sm w-1/3">{name}</span>
-                                                                    <div className="flex flex-col items-end">
-                                                                        <span className="font-mono font-bold text-sm">₹{Math.round(data.amount).toLocaleString()}</span>
-                                                                        <span className="text-[10px] text-green-600">Paid: ₹{Math.round(data.paid).toLocaleString()}</span>
+                                                            {Object.entries(stats.members).map(([name, data]) => {
+                                                                const pending = data.amount - data.paid;
+                                                                return (
+                                                                    <div key={name} className="py-3 flex justify-between items-center">
+                                                                        <span className="font-bold text-slate-700 text-sm w-1/3">{name}</span>
+                                                                        <div className="flex flex-col items-end">
+                                                                            <span className="text-xs text-slate-400">Billed: ₹{Math.round(data.amount).toLocaleString()}</span>
+                                                                            <span className="font-bold text-sm text-green-600">Paid: ₹{Math.round(data.paid).toLocaleString()}</span>
+                                                                            {pending > 0 && <span className="text-[10px] font-bold text-red-500">Due: ₹{Math.round(pending).toLocaleString()}</span>}
+                                                                        </div>
                                                                     </div>
-                                                                </div>
-                                                            ))}
+                                                                );
+                                                            })}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -508,13 +490,20 @@
                                             {historyView === 'list' && history.map((h, idx) => (
                                                 <div key={idx} className={`bg-white border rounded-xl p-4 shadow-sm relative cursor-pointer history-card ${expandedHistory === idx ? 'history-expanded' : 'border-slate-200'}`} onClick={() => setExpandedHistory(expandedHistory === idx ? null : idx)}>
                                                     <button onClick={(e)=>deleteHistory(idx, e)} className="absolute top-2 right-2 text-slate-300 hover:text-red-500 z-10 p-2"><Icons.Trash /></button>
-                                                    <div className="pr-8"><div className="font-bold text-slate-700 mb-1 flex items-center gap-2">{h.date} {expandedHistory === idx ? <Icons.ChevronUp /> : <Icons.ChevronDown />}</div><div className="flex justify-between text-sm"><span className="text-slate-500">Total Bill:</span><span className="font-bold">₹{h.totalBill}</span></div></div>
+                                                    <div className="pr-8">
+                                                        <div className="font-bold text-slate-700 mb-1 flex items-center gap-2">
+                                                            {/* Display Bill Month Name if available, else date */}
+                                                            {h.billMonthName || h.date} 
+                                                            {expandedHistory === idx ? <Icons.ChevronUp /> : <Icons.ChevronDown />}
+                                                        </div>
+                                                        <div className="flex justify-between text-sm"><span className="text-slate-500">Total Bill:</span><span className="font-bold">₹{h.totalBill}</span></div>
+                                                    </div>
                                                     {expandedHistory === idx && (
                                                         <div className="mt-4 pt-4 border-t border-slate-300 animate-in fade-in slide-in-from-top-1">
                                                             <div className="text-xs text-slate-500 mb-3 bg-white p-2 rounded border">Water: {h.water} | Motor: {h.motor} | Tanker: {h.tanker}</div>
                                                             <div className="divide-y divide-slate-200">{h.breakdown.map((item, i) => (
                                                                 <div key={i} className="py-2 flex justify-between items-center">
-                                                                    <div><div className="font-bold text-sm text-slate-700">{item.unit} {item.name}</div></div>
+                                                                    <div><div className="font-bold text-sm text-slate-700">{item.unit} {item.name}</div><div className="text-[10px] text-slate-400">{item.detail}</div></div>
                                                                     <div className="flex items-center gap-3">
                                                                         <div className="text-right">
                                                                             <div className="font-bold text-sm">₹{Math.round(item.amount)}</div>
@@ -527,7 +516,7 @@
                                                                                 >
                                                                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
                                                                                 </button>
-                                                                                <button onClick={(e) => {e.stopPropagation(); sendIndividualReminder(item, h.date);}} className="p-2 bg-slate-100 text-slate-600 rounded-full hover:bg-slate-200"><Icons.Send /></button>
+                                                                                <button onClick={(e) => {e.stopPropagation(); sendIndividualReminder(item, h.billMonthName);}} className="p-2 bg-slate-100 text-slate-600 rounded-full hover:bg-slate-200"><Icons.Send /></button>
                                                                             </>
                                                                         )}
                                                                     </div>
