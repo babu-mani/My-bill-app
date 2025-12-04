@@ -1,5 +1,5 @@
 <!-- 
-    Bill Splitter App - V3.1
+    Bill Splitter App v17.1 (Local Storage Bug Fix)
     Developed by Babu Mani (@ChartWizMani)
 -->
 <!DOCTYPE html>
@@ -21,20 +21,18 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
-    <!-- Custom Styles -->
+    <!-- Styles -->
     <style>
         body { 
             -webkit-tap-highlight-color: transparent; 
             background-color: #f8fafc; 
             user-select: none; 
         }
-        /* Remove spinner on number inputs */
         input[type="number"]::-webkit-inner-spin-button, 
         input[type="number"]::-webkit-outer-spin-button { 
             -webkit-appearance: none; 
             margin: 0; 
         }
-        /* Custom Select Arrow */
         .select-wrapper { position: relative; }
         .select-wrapper::after { 
             content: '▼'; 
@@ -46,7 +44,6 @@
             pointer-events: none; 
             color: #64748b; 
         }
-        /* Tabs & UI */
         .tab-active { border-bottom: 2px solid #2563eb; color: #2563eb; font-weight: bold; }
         .tab-inactive { color: #64748b; }
         .history-card { transition: all 0.2s; }
@@ -124,13 +121,12 @@
             const [isCloudActive, setIsCloudActive] = useState(false);
             const [syncStatus, setSyncStatus] = useState('');
 
-            // Lock to prevent race conditions during delete/write
             const ignoreRemoteUpdate = useRef(false);
 
             // 1. Initial Load
             useEffect(() => {
                 const loadSafe = (key) => { try { return JSON.parse(localStorage.getItem(key)) } catch (e) { return null; }};
-                const savedData = loadSafe('billSplitterData_v16'); 
+                const savedData = loadSafe('billSplitterData_v17'); 
                 const savedCloud = loadSafe('billSplitterCloudConfig');
                 
                 if (savedData) {
@@ -143,7 +139,6 @@
                     if(savedData.billMonth) setBillMonth(savedData.billMonth);
                 }
                 
-                // Cloud-First Loading Strategy
                 if (savedCloud) {
                     setCloudConfig(savedCloud);
                     if(savedCloud.apiKey && savedCloud.projectId) initializeFirebase(savedCloud);
@@ -153,11 +148,11 @@
                 }
             }, []);
 
-            // 2. Data Persistence (Local + Cloud Sync)
+            // 2. Data Persistence
             useEffect(() => {
                 const dataToSave = { members, houseRate, shopRate, waterBill, motorBill, tankerBill, billMonth };
-                localStorage.setItem('billSplitterData_v16', JSON.stringify(dataToSave));
-                localStorage.setItem('billSplitterHistory', JSON.stringify(history));
+                localStorage.setItem('billSplitterData_v17', JSON.stringify(dataToSave));
+                localStorage.setItem('billSplitterHistory', JSON.stringify(history)); // FIX: Added history to local save
 
                 if (isCloudActive && window.firebaseApp && !ignoreRemoteUpdate.current) {
                     const saveDataToCloud = async () => {
@@ -174,7 +169,7 @@
                     const timeout = setTimeout(saveDataToCloud, 2000); 
                     return () => clearTimeout(timeout);
                 }
-            }, [members, houseRate, shopRate, waterBill, motorBill, tankerBill, billMonth]); 
+            }, [members, houseRate, shopRate, waterBill, motorBill, tankerBill, billMonth, history]); // FIX: Added history to dependencies
 
             const initializeFirebase = (config) => {
                 if (!window.firebaseApp) {
@@ -275,7 +270,7 @@
                         const db = firebase.firestore();
                         await db.collection("bills").doc("history").set({ records: newHistory });
                     } catch (e) { 
-                        alert("Failed to delete from Cloud! Check internet.");
+                        alert("Failed to update Cloud! Check internet.");
                     }
                 }
 
@@ -516,7 +511,7 @@
                                                         </div>
                                                     ))}
                                                 </div>
-                                                <button onClick={shareFullBill} className="w-full mt-4 py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md"><Icons.Copy /> Share Full List</button>
+                                                <button onClick={shareFullBill} className="w-full mt-4 py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md"><Icons.Copy /> Copy Full List</button>
                                             </div>
                                         </div>
                                     )}
@@ -634,3 +629,5 @@
     </script>
 </body>
 </html>
+
+
