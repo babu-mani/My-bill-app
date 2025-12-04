@@ -1,5 +1,5 @@
 <!-- 
-    Bill Splitter App v16.0 (Cloud-First Architecture)
+    Bill Splitter App 
     Developed by Babu Mani (@ChartWizMani)
 -->
 <!DOCTYPE html>
@@ -34,7 +34,6 @@
         .status-btn { transition: all 0.2s; }
         .status-btn:active { transform: scale(0.9); }
         .modal-overlay { background-color: rgba(0,0,0,0.5); position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; }
-        .debug-console { font-family: monospace; font-size: 10px; color: #0f0; background: #000; padding: 10px; max-height: 150px; overflow-y: auto; margin-top: 20px; border-radius: 8px; }
     </style>
 </head>
 <body>
@@ -74,6 +73,7 @@
         ];
 
         function App() {
+            // State
             const [activeTab, setActiveTab] = useState('calc'); 
             const [historyView, setHistoryView] = useState('list');
             const [waterBill, setWaterBill] = useState('');
@@ -95,14 +95,9 @@
             const [cloudConfig, setCloudConfig] = useState({ apiKey: '', projectId: '' });
             const [isCloudActive, setIsCloudActive] = useState(false);
             const [syncStatus, setSyncStatus] = useState('');
-            const [logs, setLogs] = useState([]); 
 
+            // Sync Lock to prevent race conditions
             const ignoreRemoteUpdate = useRef(false);
-
-            const addLog = (msg) => {
-                const time = new Date().toLocaleTimeString();
-                setLogs(prev => [`[${time}] ${msg}`, ...prev].slice(0, 50));
-            };
 
             // 1. Initial Load
             useEffect(() => {
@@ -120,13 +115,10 @@
                     if(savedData.billMonth) setBillMonth(savedData.billMonth);
                 }
                 
-                // IMPORTANT: We do NOT load History from LocalStorage if Cloud is present
-                // This forces the app to look at the Server Truth
                 if (savedCloud) {
                     setCloudConfig(savedCloud);
                     if(savedCloud.apiKey && savedCloud.projectId) initializeFirebase(savedCloud);
                 } else {
-                     // Only load local history if no cloud config
                      const savedHistory = loadSafe('billSplitterHistory');
                      if(savedHistory) setHistory(savedHistory);
                 }
@@ -148,7 +140,6 @@
                             setTimeout(() => setSyncStatus(''), 2000);
                         } catch (e) {
                             setSyncStatus('Sync Failed ❌');
-                            addLog("Auto-sync error: " + e.message);
                         }
                     };
                     const timeout = setTimeout(saveDataToCloud, 2000); 
@@ -165,30 +156,20 @@
 
                         const db = firebase.firestore();
                         setIsCloudActive(true);
-                        addLog("Connected to Cloud.");
                         
                         db.collection("bills").doc("current_data").onSnapshot((doc) => { if (doc.exists()) { /* Sync logic */ } });
                         db.collection("bills").doc("history").onSnapshot((doc) => { 
-                            if (ignoreRemoteUpdate.current) {
-                                addLog("Ignored Cloud update due to local write.");
-                                return;
-                            }
+                            if (ignoreRemoteUpdate.current) return;
                             if(doc.exists()) {
                                 const data = doc.data();
-                                if(data.records) {
-                                    setHistory(data.records); 
-                                    addLog(`Received ${data.records.length} records from Cloud.`);
-                                }
+                                if(data.records) setHistory(data.records); 
                             } else {
-                                // Doc doesn't exist? Meaning empty?
                                 setHistory([]);
-                                addLog("Cloud history is empty.");
                             }
                         });
                     } catch (e) {
                         alert("Error connecting to Cloud. Check keys.");
                         setIsCloudActive(false);
-                        addLog("Init Error: " + e.message);
                     }
                 } else {
                     setIsCloudActive(true);
@@ -248,23 +229,18 @@
 
             const updateCloudHistory = async (newHistory) => {
                 ignoreRemoteUpdate.current = true; // LOCK
-                addLog("Locking sync...");
                 setHistory(newHistory); 
 
                 if (isCloudActive && window.firebaseApp) {
                     try {
                         const db = firebase.firestore();
-                        addLog("Writing to Cloud...");
-                        // Force set to overwrite completely
                         await db.collection("bills").doc("history").set({ records: newHistory });
-                        addLog("Cloud Write Success.");
                     } catch (e) { 
-                        addLog("Cloud Write Failed: " + e.message);
                         alert("Failed to delete from Cloud! Check internet.");
                     }
                 }
 
-                setTimeout(() => { ignoreRemoteUpdate.current = false; addLog("Sync Unlocked."); }, 2000);
+                setTimeout(() => { ignoreRemoteUpdate.current = false; }, 2000);
             };
 
             const saveToHistory = () => { if(!result) return; updateCloudHistory([result, ...history]); alert("Saved to History!"); };
@@ -285,7 +261,6 @@
             const deleteHistory = (i, e) => { 
                 e.stopPropagation(); 
                 if(confirm("Delete this record permanently?")) {
-                    addLog(`Deleting record index ${i}`);
                     const newHistory = history.filter((_, idx) => idx !== i);
                     updateCloudHistory(newHistory);
                 }
@@ -294,15 +269,9 @@
             const nukeHistory = () => {
                 if(confirm("⚠️ DANGER: Clear ALL History?")) {
                     if(confirm("This cannot be undone. Are you sure?")) {
-                        addLog("Nuking all history...");
-                        // We use updateCloudHistory to ensure proper locking
                         updateCloudHistory([]);
-                        
-                        // Optional: Hard Delete the doc to be sure
-                         if (isCloudActive && window.firebaseApp) {
-                             firebase.firestore().collection("bills").doc("history").delete()
-                             .then(() => addLog("Cloud Document Deleted."))
-                             .catch(e => addLog("Error deleting doc: " + e.message));
+                        if (isCloudActive && window.firebaseApp) {
+                             firebase.firestore().collection("bills").doc("history").delete();
                          }
                         alert("History Cleared.");
                     }
@@ -377,7 +346,7 @@
                     <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
                         {/* HEADER */}
                         <div className="bg-blue-600 p-6 text-white flex justify-between items-center">
-                            <div><h1 className="text-2xl font-bold">Bill Splitter</h1><p className="text-blue-100 opacity-90 text-sm">Cloud Accountant</p></div>
+                            <div><h1 className="text-2xl font-bold">Bill Splitter</h1><p className="text-blue-100 opacity-90 text-sm">Cloud Edition {isCloudActive && '⚡'}</p></div>
                             <div className="flex gap-2">
                                 <button onClick={()=>setShowCloudSetup(true)} className={`p-2 rounded-full transition ${isCloudActive ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-500 hover:bg-blue-400'}`} title="Cloud Setup">{isCloudActive ? <Icons.Cloud /> : <Icons.CloudOff />}</button>
                                 <button onClick={reset} className="p-2 bg-blue-500 rounded-full hover:bg-blue-400" title="Reset"><Icons.Reset /></button>
@@ -521,13 +490,6 @@
                                             <button onClick={downloadExcel} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200" title="Download Excel"><Icons.Download /></button>
                                         </div>
                                     </div>
-
-                                    {/* DEBUG CONSOLE (Only shows if logs exist) */}
-                                    {logs.length > 0 && (
-                                        <div className="debug-console mb-4">
-                                            {logs.map((l, i) => <div key={i}>{l}</div>)}
-                                        </div>
-                                    )}
 
                                     {history.length === 0 ? <p className="text-center text-slate-400 py-10">No history saved yet.</p> : (
                                         <>
