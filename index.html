@@ -1,5 +1,5 @@
 <!-- 
-    Bill Splitter App v13.0 (Hard Delete + Force Sync)
+    Bill Splitter App v14.0 (Fixed Delete + Dashboard UI)
     Developed by Babu Mani (@ChartWizMani)
 -->
 <!DOCTYPE html>
@@ -99,7 +99,7 @@
             // 1. Initial Load
             useEffect(() => {
                 const loadSafe = (key) => { try { return JSON.parse(localStorage.getItem(key)) } catch (e) { return null; }};
-                const savedData = loadSafe('billSplitterData_v13'); // Bumped Version
+                const savedData = loadSafe('billSplitterData_v14'); // Bumped Version
                 const savedHistory = loadSafe('billSplitterHistory');
                 const savedCloud = loadSafe('billSplitterCloudConfig');
                 
@@ -122,7 +122,7 @@
             // 2. Data Persistence (Local + Cloud Sync)
             useEffect(() => {
                 const dataToSave = { members, houseRate, shopRate, waterBill, motorBill, tankerBill, billMonth };
-                localStorage.setItem('billSplitterData_v13', JSON.stringify(dataToSave));
+                localStorage.setItem('billSplitterData_v14', JSON.stringify(dataToSave));
                 localStorage.setItem('billSplitterHistory', JSON.stringify(history));
 
                 if (isCloudActive && window.firebaseApp) {
@@ -224,7 +224,7 @@
                         const db = firebase.firestore();
                         await db.collection("bills").doc("history").set({ records: newHistory });
                     } catch (e) { 
-                        alert("Cloud Sync Failed! Check internet.");
+                        alert("Cloud Sync Failed! Ensure your Database Rules are set to 'allow read, write: if true;' in Firebase Console.");
                         console.error("Cloud Error", e); 
                     }
                 }
@@ -249,7 +249,7 @@
                 e.stopPropagation(); 
                 if(confirm("Delete this record permanently?")) {
                     const newHistory = history.filter((_, idx) => idx !== i);
-                    updateCloudHistory(newHistory); // Now calls set() directly to overwrite
+                    updateCloudHistory(newHistory);
                 }
             };
 
@@ -291,6 +291,9 @@
 
             const getUniqueYears = () => {
                 const years = new Set([new Date().getFullYear().toString()]); 
+                // Add next year automatically
+                years.add((new Date().getFullYear() + 1).toString());
+                
                 history.forEach(h => {
                     let y = new Date(h.date).getFullYear().toString();
                     if(h.billMonthKey) y = h.billMonthKey.split('-')[0];
