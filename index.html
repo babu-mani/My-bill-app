@@ -1,5 +1,5 @@
 <!-- 
-    Bill Splitter App v3.0 Sharing fixed
+    Bill Splitter App - V3.1
     Developed by Babu Mani (@ChartWizMani)
 -->
 <!DOCTYPE html>
@@ -21,19 +21,47 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
-    <!-- Styles -->
+    <!-- Custom Styles -->
     <style>
-        body { -webkit-tap-highlight-color: transparent; background-color: #f8fafc; user-select: none; }
-        input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        body { 
+            -webkit-tap-highlight-color: transparent; 
+            background-color: #f8fafc; 
+            user-select: none; 
+        }
+        /* Remove spinner on number inputs */
+        input[type="number"]::-webkit-inner-spin-button, 
+        input[type="number"]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        /* Custom Select Arrow */
         .select-wrapper { position: relative; }
-        .select-wrapper::after { content: '▼'; font-size: 0.7rem; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); pointer-events: none; color: #64748b; }
+        .select-wrapper::after { 
+            content: '▼'; 
+            font-size: 0.7rem; 
+            position: absolute; 
+            right: 8px; 
+            top: 50%; 
+            transform: translateY(-50%); 
+            pointer-events: none; 
+            color: #64748b; 
+        }
+        /* Tabs & UI */
         .tab-active { border-bottom: 2px solid #2563eb; color: #2563eb; font-weight: bold; }
         .tab-inactive { color: #64748b; }
         .history-card { transition: all 0.2s; }
         .history-expanded { border: 1px solid #3b82f6; background-color: #eff6ff; }
         .status-btn { transition: all 0.2s; }
         .status-btn:active { transform: scale(0.9); }
-        .modal-overlay { background-color: rgba(0,0,0,0.5); position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; }
+        .modal-overlay { 
+            background-color: rgba(0,0,0,0.5); 
+            position: fixed; 
+            inset: 0; 
+            z-index: 50; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+        }
     </style>
 </head>
 <body>
@@ -42,7 +70,7 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // --- Icons ---
+        // --- UI Icons ---
         const Icons = {
             Calc: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></svg>,
             Reset: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>,
@@ -73,6 +101,7 @@
         ];
 
         function App() {
+            // State
             const [activeTab, setActiveTab] = useState('calc'); 
             const [historyView, setHistoryView] = useState('list');
             const [waterBill, setWaterBill] = useState('');
@@ -95,6 +124,7 @@
             const [isCloudActive, setIsCloudActive] = useState(false);
             const [syncStatus, setSyncStatus] = useState('');
 
+            // Lock to prevent race conditions during delete/write
             const ignoreRemoteUpdate = useRef(false);
 
             // 1. Initial Load
@@ -113,6 +143,7 @@
                     if(savedData.billMonth) setBillMonth(savedData.billMonth);
                 }
                 
+                // Cloud-First Loading Strategy
                 if (savedCloud) {
                     setCloudConfig(savedCloud);
                     if(savedCloud.apiKey && savedCloud.projectId) initializeFirebase(savedCloud);
@@ -122,7 +153,7 @@
                 }
             }, []);
 
-            // 2. Data Persistence
+            // 2. Data Persistence (Local + Cloud Sync)
             useEffect(() => {
                 const dataToSave = { members, houseRate, shopRate, waterBill, motorBill, tankerBill, billMonth };
                 localStorage.setItem('billSplitterData_v16', JSON.stringify(dataToSave));
@@ -174,15 +205,12 @@
                 }
             };
 
-            // NEW: Helper to open WhatsApp Smartly
             const openWhatsApp = (text) => {
                 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
                 const encoded = encodeURIComponent(text);
                 if (isMobile) {
-                    // Try specific scheme to force app
                     window.location.href = `whatsapp://send?text=${encoded}`;
                 } else {
-                    // Desktop fallback
                     window.open(`https://web.whatsapp.com/send?text=${encoded}`, '_blank');
                 }
             };
@@ -239,7 +267,7 @@
             };
 
             const updateCloudHistory = async (newHistory) => {
-                ignoreRemoteUpdate.current = true; // LOCK
+                ignoreRemoteUpdate.current = true; // LOCK SYNC
                 setHistory(newHistory); 
 
                 if (isCloudActive && window.firebaseApp) {
@@ -251,7 +279,7 @@
                     }
                 }
 
-                setTimeout(() => { ignoreRemoteUpdate.current = false; }, 2000);
+                setTimeout(() => { ignoreRemoteUpdate.current = false; }, 2000); // UNLOCK
             };
 
             const saveToHistory = () => { if(!result) return; updateCloudHistory([result, ...history]); alert("Saved to History!"); };
@@ -318,14 +346,7 @@
                     const namePart = i.name || 'Unknown';
                     text += `${unitPart}${namePart}: ₹${Math.round(i.amount)}\n`;
                 });
-                
-                // Try to share via Web Share API (native mobile share)
-                if (navigator.share) {
-                    navigator.share({ title: 'Bill Details', text: text }).catch(console.error);
-                } else {
-                    // Fallback to copy
-                    const t = document.createElement("textarea"); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); alert('Copied!');
-                }
+                const t = document.createElement("textarea"); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); alert('Copied!');
             };
             
             const reset = () => { if(confirm("Reset all?")) { setMembers(DEFAULT_MEMBERS); setWaterBill(''); setMotorBill(''); setTankerBill(''); setResult(null); }};
@@ -371,7 +392,7 @@
                     <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
                         {/* HEADER */}
                         <div className="bg-blue-600 p-6 text-white flex justify-between items-center">
-                            <div><h1 className="text-2xl font-bold">Bill Splitter</h1><p className="text-blue-100 opacity-90 text-sm">Cloud Edition {isCloudActive && '⚡'}</p></div>
+                            <div><h1 className="text-2xl font-bold">Bill Splitter</h1><p className="text-blue-100 opacity-90 text-sm">Cloud Accountant</p></div>
                             <div className="flex gap-2">
                                 <button onClick={()=>setShowCloudSetup(true)} className={`p-2 rounded-full transition ${isCloudActive ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-500 hover:bg-blue-400'}`} title="Cloud Setup">{isCloudActive ? <Icons.Cloud /> : <Icons.CloudOff />}</button>
                                 <button onClick={reset} className="p-2 bg-blue-500 rounded-full hover:bg-blue-400" title="Reset"><Icons.Reset /></button>
