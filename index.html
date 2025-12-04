@@ -1,5 +1,5 @@
 <!-- 
-    Bill Splitter App v14.0 (Fixed Delete + Dashboard UI)
+    Bill Splitter App v15.0 (Debug Logs + Sync Lock Fix)
     Developed by Babu Mani (@ChartWizMani)
 -->
 <!DOCTYPE html>
@@ -34,6 +34,7 @@
         .status-btn { transition: all 0.2s; }
         .status-btn:active { transform: scale(0.9); }
         .modal-overlay { background-color: rgba(0,0,0,0.5); position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; }
+        .debug-console { font-family: monospace; font-size: 10px; color: #0f0; background: #000; padding: 10px; max-height: 150px; overflow-y: auto; margin-top: 20px; border-radius: 8px; }
     </style>
 </head>
 <body>
@@ -95,11 +96,20 @@
             const [cloudConfig, setCloudConfig] = useState({ apiKey: '', projectId: '' });
             const [isCloudActive, setIsCloudActive] = useState(false);
             const [syncStatus, setSyncStatus] = useState('');
+            const [logs, setLogs] = useState([]); // Debug Logs
+
+            // Ref to prevent race conditions during write
+            const ignoreRemoteUpdate = useRef(false);
+
+            const addLog = (msg) => {
+                const time = new Date().toLocaleTimeString();
+                setLogs(prev => [`[${time}] ${msg}`, ...prev].slice(0, 50));
+            };
 
             // 1. Initial Load
             useEffect(() => {
                 const loadSafe = (key) => { try { return JSON.parse(localStorage.getItem(key)) } catch (e) { return null; }};
-                const savedData = loadSafe('billSplitterData_v14'); // Bumped Version
+                const savedData = loadSafe('billSplitterData_v15'); 
                 const savedHistory = loadSafe('billSplitterHistory');
                 const savedCloud = loadSafe('billSplitterCloudConfig');
                 
@@ -122,10 +132,10 @@
             // 2. Data Persistence (Local + Cloud Sync)
             useEffect(() => {
                 const dataToSave = { members, houseRate, shopRate, waterBill, motorBill, tankerBill, billMonth };
-                localStorage.setItem('billSplitterData_v14', JSON.stringify(dataToSave));
+                localStorage.setItem('billSplitterData_v15', JSON.stringify(dataToSave));
                 localStorage.setItem('billSplitterHistory', JSON.stringify(history));
 
-                if (isCloudActive && window.firebaseApp) {
+                if (isCloudActive && window.firebaseApp && !ignoreRemoteUpdate.current) {
                     const saveDataToCloud = async () => {
                         setSyncStatus('Syncing...');
                         try {
@@ -134,8 +144,8 @@
                             setSyncStatus('Synced ✅');
                             setTimeout(() => setSyncStatus(''), 2000);
                         } catch (e) {
-                            console.error("Sync Error", e);
                             setSyncStatus('Sync Failed ❌');
+                            addLog("Auto-sync error: " + e.message);
                         }
                     };
                     const timeout = setTimeout(saveDataToCloud, 2000); 
@@ -152,14 +162,23 @@
 
                         const db = firebase.firestore();
                         setIsCloudActive(true);
+                        addLog("Connected to Cloud.");
                         
                         db.collection("bills").doc("current_data").onSnapshot((doc) => { if (doc.exists()) { /* Sync logic */ } });
                         db.collection("bills").doc("history").onSnapshot((doc) => { 
-                            if(doc.exists() && doc.data().records) setHistory(doc.data().records); 
+                            if (ignoreRemoteUpdate.current) {
+                                addLog("Ignored Cloud update due to local write.");
+                                return;
+                            }
+                            if(doc.exists() && doc.data().records) {
+                                setHistory(doc.data().records); 
+                                addLog("Received updated history from Cloud.");
+                            }
                         });
                     } catch (e) {
                         alert("Error connecting to Cloud. Check keys.");
                         setIsCloudActive(false);
+                        addLog("Init Error: " + e.message);
                     }
                 } else {
                     setIsCloudActive(true);
@@ -218,16 +237,31 @@
             };
 
             const updateCloudHistory = async (newHistory) => {
+                // 1. LOCK SYNC
+                ignoreRemoteUpdate.current = true;
+                addLog("Locking sync for write...");
+
+                // 2. UPDATE LOCAL
                 setHistory(newHistory); 
+
+                // 3. UPDATE CLOUD
                 if (isCloudActive && window.firebaseApp) {
                     try {
                         const db = firebase.firestore();
+                        addLog("Writing to Cloud...");
                         await db.collection("bills").doc("history").set({ records: newHistory });
+                        addLog("Cloud Write Success.");
                     } catch (e) { 
-                        alert("Cloud Sync Failed! Ensure your Database Rules are set to 'allow read, write: if true;' in Firebase Console.");
-                        console.error("Cloud Error", e); 
+                        addLog("Cloud Write Failed: " + e.message);
+                        alert("Failed to delete from Cloud! Check internet.");
                     }
                 }
+
+                // 4. UNLOCK SYNC (After delay to ensure cloud echoes back)
+                setTimeout(() => {
+                    ignoreRemoteUpdate.current = false;
+                    addLog("Sync Unlocked.");
+                }, 2000);
             };
 
             const saveToHistory = () => { if(!result) return; updateCloudHistory([result, ...history]); alert("Saved to History!"); };
@@ -248,16 +282,18 @@
             const deleteHistory = (i, e) => { 
                 e.stopPropagation(); 
                 if(confirm("Delete this record permanently?")) {
+                    addLog(`Deleting record index ${i}`);
                     const newHistory = history.filter((_, idx) => idx !== i);
                     updateCloudHistory(newHistory);
                 }
             };
 
             const nukeHistory = () => {
-                if(confirm("⚠️ DANGER: Are you sure you want to delete ALL history? This cannot be undone.")) {
-                    if(confirm("Really sure? This wipes the cloud database.")) {
+                if(confirm("⚠️ DANGER: Clear ALL History?")) {
+                    if(confirm("This cannot be undone. Are you sure?")) {
+                        addLog("Nuking all history...");
                         updateCloudHistory([]);
-                        alert("History Cleared.");
+                        alert("All history cleared.");
                     }
                 }
             };
@@ -291,9 +327,7 @@
 
             const getUniqueYears = () => {
                 const years = new Set([new Date().getFullYear().toString()]); 
-                // Add next year automatically
                 years.add((new Date().getFullYear() + 1).toString());
-                
                 history.forEach(h => {
                     let y = new Date(h.date).getFullYear().toString();
                     if(h.billMonthKey) y = h.billMonthKey.split('-')[0];
@@ -477,6 +511,13 @@
                                         </div>
                                     </div>
 
+                                    {/* DEBUG CONSOLE (Only shows if logs exist) */}
+                                    {logs.length > 0 && (
+                                        <div className="debug-console mb-4">
+                                            {logs.map((l, i) => <div key={i}>{l}</div>)}
+                                        </div>
+                                    )}
+
                                     {history.length === 0 ? <p className="text-center text-slate-400 py-10">No history saved yet.</p> : (
                                         <>
                                             {/* STATS VIEW */}
@@ -540,7 +581,7 @@
                                                             <div className="text-xs text-slate-500 mb-3 bg-white p-2 rounded border">Water: {h.water} | Motor: {h.motor} | Tanker: {h.tanker}</div>
                                                             <div className="divide-y divide-slate-200">{h.breakdown.map((item, i) => (
                                                                 <div key={i} className="py-2 flex justify-between items-center">
-                                                                    <div><div className="font-bold text-sm text-slate-700">{item.unit} {item.name}</div><div className="text-[10px] text-slate-400">{item.detail}</div></div>
+                                                                    <div><div className="font-bold text-sm text-slate-700">{item.unit} {item.name}</div></div>
                                                                     <div className="flex items-center gap-3">
                                                                         <div className="text-right">
                                                                             <div className="font-bold text-sm">₹{Math.round(item.amount)}</div>
