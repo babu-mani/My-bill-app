@@ -1,5 +1,5 @@
 <!-- 
-    Bill Splitter App (Smart Share Edition)
+    Bill Splitter App v6 (Persistent History & Reminders)
     Developed by Babu Mani (@ChartWizMani)
 -->
 <!DOCTYPE html>
@@ -19,49 +19,44 @@
 
     <!-- Styles -->
     <style>
-        body { 
-            -webkit-tap-highlight-color: transparent; 
-            background-color: #f8fafc;
-            user-select: none; 
-        }
-        input[type="number"]::-webkit-inner-spin-button, 
-        input[type="number"]::-webkit-outer-spin-button { 
-            -webkit-appearance: none; margin: 0; 
-        }
+        body { -webkit-tap-highlight-color: transparent; background-color: #f8fafc; user-select: none; }
+        input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         .select-wrapper { position: relative; }
-        .select-wrapper::after {
-            content: '▼'; font-size: 0.7rem; position: absolute; right: 8px; top: 50%;
-            transform: translateY(-50%); pointer-events: none; color: #64748b;
-        }
+        .select-wrapper::after { content: '▼'; font-size: 0.7rem; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); pointer-events: none; color: #64748b; }
+        .tab-active { border-bottom: 2px solid #2563eb; color: #2563eb; font-weight: bold; }
+        .tab-inactive { color: #64748b; }
+        .history-card { transition: all 0.2s; }
+        .history-expanded { border: 1px solid #3b82f6; background-color: #eff6ff; }
     </style>
 
-    <!-- Security: Disable Right Click -->
+    <!-- Security -->
     <script>
         document.addEventListener('contextmenu', event => event.preventDefault());
-        document.onkeydown = function(e) {
-            if(e.keyCode == 123) return false; 
-            if(e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) return false; 
-            if(e.ctrlKey && e.shiftKey && e.keyCode == 'C'.charCodeAt(0)) return false; 
-            if(e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) return false; 
-            if(e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) return false; 
-        }
+        document.onkeydown = function(e) { if(e.keyCode == 123) return false; }
     </script>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        // Developed by Babu Mani (@ChartWizMani)
         const { useState, useEffect } = React;
 
         // --- Icons ---
-        const IconCalculator = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></svg>;
-        const IconRotateCcw = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>;
-        const IconTrash2 = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>;
-        const IconPlus = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>;
-        const IconCopy = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>;
-        const IconSettings = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>;
-        const IconShare = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" x2="12" y1="2" y2="15"/></svg>;
+        const Icons = {
+            Calc: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></svg>,
+            Reset: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>,
+            Trash: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>,
+            Plus: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>,
+            Copy: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>,
+            Settings: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+            Share: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" x2="12" y1="2" y2="15"/></svg>,
+            Save: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>,
+            Download: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>,
+            History: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>,
+            Send: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
+            ChevronDown: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>,
+            ChevronUp: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+        };
 
         const DEFAULT_MEMBERS = [
             { id: 1, unit: '101', name: 'B. Shivakumar', type: 'house', count: 1 },
@@ -73,246 +68,300 @@
         ];
 
         function App() {
+            // State
+            const [activeTab, setActiveTab] = useState('calc'); 
             const [waterBill, setWaterBill] = useState('');
             const [motorBill, setMotorBill] = useState('');
             const [tankerBill, setTankerBill] = useState('');
-            
             const [members, setMembers] = useState(DEFAULT_MEMBERS);
             const [houseRate, setHouseRate] = useState(500);
             const [shopRate, setShopRate] = useState(200);
-            
             const [result, setResult] = useState(null);
             const [showSettings, setShowSettings] = useState(false);
-            const [statusMsg, setStatusMsg] = useState('');
+            const [history, setHistory] = useState([]);
+            const [expandedHistory, setExpandedHistory] = useState(null); // Track which history item is open
 
-            // --- SMART LOAD: Check for URL data first ---
+            // Load Data & Inputs
             useEffect(() => {
-                const checkUrlForConfig = () => {
-                    if (window.location.hash.length > 1) {
-                        try {
-                            const compressedData = window.location.hash.substring(1);
-                            const decoded = JSON.parse(atob(compressedData));
-                            
-                            if (confirm("Found a new configuration in the link! Do you want to load it? (This will overwrite current data)")) {
-                                if(decoded.members) setMembers(decoded.members);
-                                if(decoded.houseRate) setHouseRate(decoded.houseRate);
-                                if(decoded.shopRate) setShopRate(decoded.shopRate);
-                                
-                                // Clean URL after loading
-                                window.history.pushState("", document.title, window.location.pathname + window.location.search);
-                                alert("Data loaded successfully!");
-                            }
-                        } catch (e) {
-                            console.error("Invalid link data", e);
-                        }
-                    } else {
-                        // Load local storage if no URL data
-                        const savedData = localStorage.getItem('billSplitterData_v5');
-                        if (savedData) {
-                            const parsed = JSON.parse(savedData);
-                            if(parsed.members) setMembers(parsed.members);
-                            if(parsed.houseRate !== undefined) setHouseRate(parsed.houseRate);
-                            if(parsed.shopRate !== undefined) setShopRate(parsed.shopRate);
-                        }
-                    }
-                };
+                const savedData = localStorage.getItem('billSplitterData_v6'); // Version 6
+                const savedHistory = localStorage.getItem('billSplitterHistory');
                 
-                checkUrlForConfig();
+                if (savedData) {
+                    const parsed = JSON.parse(savedData);
+                    if(parsed.members) setMembers(parsed.members);
+                    if(parsed.houseRate) setHouseRate(parsed.houseRate);
+                    if(parsed.shopRate) setShopRate(parsed.shopRate);
+                    // RESTORE INPUTS IF EXIST
+                    if(parsed.waterBill) setWaterBill(parsed.waterBill);
+                    if(parsed.motorBill) setMotorBill(parsed.motorBill);
+                    if(parsed.tankerBill) setTankerBill(parsed.tankerBill);
+                }
+                if (savedHistory) setHistory(JSON.parse(savedHistory));
+                
+                if (window.location.hash.length > 1) {
+                    try {
+                        const decoded = JSON.parse(atob(window.location.hash.substring(1)));
+                        if (confirm("Load settings from link?")) {
+                            if(decoded.members) setMembers(decoded.members);
+                            if(decoded.houseRate) setHouseRate(decoded.houseRate);
+                            if(decoded.shopRate) setShopRate(decoded.shopRate);
+                            window.history.pushState("", document.title, window.location.pathname + window.location.search);
+                        }
+                    } catch(e) {}
+                }
             }, []);
 
+            // Save Data & Inputs
             useEffect(() => {
-                const dataToSave = { members, houseRate, shopRate };
-                localStorage.setItem('billSplitterData_v5', JSON.stringify(dataToSave));
-            }, [members, houseRate, shopRate]);
+                const dataToSave = { members, houseRate, shopRate, waterBill, motorBill, tankerBill };
+                localStorage.setItem('billSplitterData_v6', JSON.stringify(dataToSave));
+                localStorage.setItem('billSplitterHistory', JSON.stringify(history));
+            }, [members, houseRate, shopRate, history, waterBill, motorBill, tankerBill]);
 
-            // --- Handlers ---
             const handleAddMember = () => setMembers([...members, { id: Date.now(), unit: '', name: '', type: 'family', count: 1 }]);
             const handleRemoveMember = (id) => setMembers(members.filter(m => m.id !== id));
             const handleUpdateMember = (id, field, value) => setMembers(members.map(m => m.id === id ? { ...m, [field]: value } : m));
-
-            // --- SHARE CONFIGURATION ---
-            const generateShareLink = () => {
-                const data = { members, houseRate, shopRate };
-                const compressed = btoa(JSON.stringify(data)); // Simple encoding
-                const url = window.location.href.split('#')[0] + '#' + compressed;
-                
-                const textArea = document.createElement("textarea");
-                textArea.value = url;
-                document.body.appendChild(textArea);
-                textArea.select();
-                try {
-                    document.execCommand('copy');
-                    alert('Setup Link Copied! \n\nSend this link to your family member. When they open it, they will get this exact list of names and rates.');
-                } catch (err) {
-                    console.error('Failed to copy', err);
-                }
-                document.body.removeChild(textArea);
-            };
 
             const calculate = () => {
                 const water = parseFloat(waterBill) || 0;
                 const motor = parseFloat(motorBill) || 0;
                 const tanker = parseFloat(tankerBill) || 0;
-                const currentHouseRate = parseFloat(houseRate) || 0;
-                const currentShopRate = parseFloat(shopRate) || 0;
-                
                 const totalBill = water + motor + tanker;
+
                 let fixedCollection = 0;
                 let totalVariableMembers = 0;
+                const hRate = parseFloat(houseRate) || 0;
+                const sRate = parseFloat(shopRate) || 0;
 
                 members.forEach(m => {
-                    if (m.type === 'house') fixedCollection += currentHouseRate;
-                    else if (m.type === 'shop') fixedCollection += currentShopRate;
-                    else if (m.type === 'vacant') { }
-                    else totalVariableMembers += parseInt(m.count) || 0;
+                    if (m.type === 'house') fixedCollection += hRate;
+                    else if (m.type === 'shop') fixedCollection += sRate;
+                    else if (m.type !== 'vacant') totalVariableMembers += parseInt(m.count) || 0;
                 });
 
-                let finalHouseRate = currentHouseRate;
-                let finalShopRate = currentShopRate;
-                let remainingBill = 0;
-                let perPersonCost = 0;
-                let totalActualCollection = 0;
+                let finalHRate = hRate, finalSRate = sRate, perPerson = 0, remaining = 0;
 
                 if (totalBill <= fixedCollection) {
-                    const scale = fixedCollection > 0 ? (totalBill / fixedCollection) : 0;
-                    finalHouseRate = currentHouseRate * scale;
-                    finalShopRate = currentShopRate * scale;
-                    remainingBill = 0;
-                    perPersonCost = 0;
-                    totalActualCollection = totalBill;
+                    const scale = fixedCollection > 0 ? totalBill / fixedCollection : 0;
+                    finalHRate = hRate * scale;
+                    finalSRate = sRate * scale;
                 } else {
-                    remainingBill = totalBill - fixedCollection;
-                    perPersonCost = totalVariableMembers > 0 ? (remainingBill / totalVariableMembers) : 0;
-                    totalActualCollection = fixedCollection;
+                    remaining = totalBill - fixedCollection;
+                    perPerson = totalVariableMembers > 0 ? remaining / totalVariableMembers : 0;
                 }
 
                 const breakdown = members.map(m => {
-                    let amount = 0;
-                    let detail = '';
-                    if (m.type === 'house') { amount = finalHouseRate; detail = 'Fixed House'; }
+                    let amount = 0, detail = '';
+                    if (m.type === 'house') { amount = finalHRate; detail = 'Fixed House'; }
                     else if (m.type === 'shop') { amount = finalShopRate; detail = 'Fixed Shop'; }
                     else if (m.type === 'vacant') { amount = 0; detail = 'Vacant'; }
-                    else { amount = (parseInt(m.count) || 0) * perPersonCost; detail = `${m.count} members × ₹${perPersonCost.toFixed(2)}`; }
+                    else { amount = (parseInt(m.count) || 0) * perPerson; detail = `${m.count} members`; }
                     return { ...m, amount, detail };
                 });
 
-                setResult({ totalBill, perPersonCost, breakdown, water, motor, tanker, remainingBill, totalActualCollection });
+                setResult({ totalBill, perPerson, breakdown, water, motor, tanker, date: new Date().toLocaleString() });
             };
 
-            const copyToClipboard = () => {
-                if (!result) return;
-                const date = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
-                let text = `*Bill Details - ${date}*\n`;
-                text += `Developed by Babu Mani (@ChartWizMani)\n\n`;
-                if(result.water > 0) text += `💧 Water Bill: ₹${result.water}\n`;
-                if(result.motor > 0) text += `⚡ Motor Bill: ₹${result.motor}\n`;
-                if(result.tanker > 0) text += `🚛 Outside Water: ₹${result.tanker}\n`;
-                text += `*Total Bill: ₹${result.totalBill.toLocaleString()}*\n`;
-                if (result.perPersonCost > 0) text += `(Family Rate: ₹${result.perPersonCost.toFixed(2)} / member)\n`;
-                text += `\n*Breakdown:*\n`;
-                result.breakdown.forEach(item => {
-                    const nameDisplay = item.unit ? (item.name ? `${item.unit} (${item.name})` : item.unit) : item.name;
-                    text += `${nameDisplay}: ₹${Math.round(item.amount).toLocaleString()} (${item.detail})\n`;
-                });
-                text += `\nTotal: ₹${Math.round(result.breakdown.reduce((a, b) => a + b.amount, 0)).toLocaleString()}`;
+            const saveToHistory = () => {
+                if(!result) return;
+                const newHistory = [result, ...history];
+                setHistory(newHistory);
+                alert("Saved to History tab!");
+            };
 
-                const textArea = document.createElement("textarea");
-                textArea.value = text;
-                document.body.appendChild(textArea);
-                textArea.select();
-                try { document.execCommand('copy'); alert('Details copied!'); } catch (err) {}
+            const downloadExcel = () => {
+                if(history.length === 0) return alert("No history to export.");
+                let csvContent = "data:text/csv;charset=utf-8,";
+                csvContent += "Date,Total Bill,Water,Motor,Tanker,Family Rate,Unit,Name,Amount\n";
+                history.forEach(record => {
+                    record.breakdown.forEach(b => {
+                        const row = [record.date.replace(',',''), record.totalBill, record.water, record.motor, record.tanker, record.perPerson.toFixed(2), b.unit || '', b.name || '', Math.round(b.amount)].join(",");
+                        csvContent += row + "\n";
+                    });
+                });
+                const link = document.createElement("a");
+                link.setAttribute("href", encodeURI(csvContent));
+                link.setAttribute("download", "billing_history.csv");
+                document.body.appendChild(link); link.click();
+            };
+
+            const sendIndividualReminder = (item, billDate) => {
+                if(item.amount <= 0) return;
+                const dateText = billDate ? ` (Bill Date: ${billDate.split(',')[0]})` : '';
+                const text = `Hi ${item.name} (${item.unit}), your utility bill share${dateText} is ₹${Math.round(item.amount)}. Please pay at your earliest convenience.`;
+                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+            };
+
+            const shareSetup = () => {
+                const url = window.location.href.split('#')[0] + '#' + btoa(JSON.stringify({ members, houseRate, shopRate }));
+                const textArea = document.createElement("textarea"); textArea.value = url; document.body.appendChild(textArea); textArea.select();
+                try { document.execCommand('copy'); alert('Setup Link Copied!'); } catch (e) {}
                 document.body.removeChild(textArea);
             };
 
-            const resetToDefault = () => {
-                if(confirm("Reset everything to default?")) {
-                    setMembers(DEFAULT_MEMBERS); setWaterBill(''); setMotorBill(''); setTankerBill(''); setResult(null); setHouseRate(500); setShopRate(200);
-                }
-            };
+            const reset = () => { if(confirm("Reset all?")) { setMembers(DEFAULT_MEMBERS); setWaterBill(''); setMotorBill(''); setTankerBill(''); setResult(null); }};
+            const deleteHistory = (index, e) => { e.stopPropagation(); if(confirm("Delete this record?")) { setHistory(history.filter((_, i) => i !== index)); }};
 
             return (
-                <div className="min-h-screen font-sans p-3 md:p-6 max-w-2xl mx-auto text-slate-900">
+                <div className="min-h-screen font-sans p-3 md:p-6 max-w-2xl mx-auto text-slate-900 pb-20">
                     <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
+                        
+                        {/* HEADER */}
                         <div className="bg-blue-600 p-6 text-white flex justify-between items-center">
-                            <div><h1 className="text-2xl font-bold">Bill Splitter</h1><p className="text-blue-100 opacity-90 text-sm">Smart Share Edition</p></div>
-                            <button onClick={resetToDefault} className="p-2 bg-blue-500 rounded-full hover:bg-blue-400 transition"><IconRotateCcw /></button>
+                            <div><h1 className="text-2xl font-bold">Bill Splitter</h1><p className="text-blue-100 opacity-90 text-sm">Manager Edition</p></div>
+                            <div className="flex gap-2">
+                                <button onClick={shareSetup} className="p-2 bg-blue-500 rounded-full hover:bg-blue-400" title="Share Setup"><Icons.Share /></button>
+                                <button onClick={reset} className="p-2 bg-blue-500 rounded-full hover:bg-blue-400" title="Reset"><Icons.Reset /></button>
+                            </div>
+                        </div>
+
+                        {/* TABS */}
+                        <div className="flex border-b border-slate-200">
+                            <button onClick={()=>setActiveTab('calc')} className={`flex-1 py-3 text-center ${activeTab==='calc'?'tab-active':'tab-inactive'}`}>Calculator</button>
+                            <button onClick={()=>setActiveTab('history')} className={`flex-1 py-3 text-center ${activeTab==='history'?'tab-active':'tab-inactive'}`}>History ({history.length})</button>
                         </div>
 
                         <div className="p-5 space-y-6">
-                            <section className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                                <h2 className="text-md font-bold text-slate-700 mb-3">1. Bill Amounts</h2>
-                                <div className="grid grid-cols-2 gap-3 mb-3">
-                                    <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Water Bill</label><input type="number" value={waterBill} onChange={(e) => setWaterBill(e.target.value)} className="w-full text-xl p-2 rounded-lg border border-slate-300 focus:border-blue-500 outline-none bg-white" placeholder="0" /></div>
-                                    <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Motor Bill</label><input type="number" value={motorBill} onChange={(e) => setMotorBill(e.target.value)} className="w-full text-xl p-2 rounded-lg border border-slate-300 focus:border-blue-500 outline-none bg-white" placeholder="0" /></div>
-                                </div>
-                                <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Water Supply / Tanker</label><input type="number" value={tankerBill} onChange={(e) => setTankerBill(e.target.value)} className="w-full text-xl p-2 rounded-lg border border-slate-300 focus:border-blue-500 outline-none bg-white" placeholder="0" /></div>
-                            </section>
+                            
+                            {/* CALCULATOR TAB */}
+                            {activeTab === 'calc' && (
+                                <>
+                                    <section className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                        <h2 className="text-md font-bold text-slate-700 mb-3">1. Bill Amounts</h2>
+                                        <div className="grid grid-cols-2 gap-3 mb-3">
+                                            <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Water Bill</label><input type="number" value={waterBill} onChange={e=>setWaterBill(e.target.value)} className="w-full text-xl p-2 rounded-lg border border-slate-300 outline-none" placeholder="0" /></div>
+                                            <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Motor Bill</label><input type="number" value={motorBill} onChange={e=>setMotorBill(e.target.value)} className="w-full text-xl p-2 rounded-lg border border-slate-300 outline-none" placeholder="0" /></div>
+                                        </div>
+                                        <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Water Supply / Tanker</label><input type="number" value={tankerBill} onChange={e=>setTankerBill(e.target.value)} className="w-full text-xl p-2 rounded-lg border border-slate-300 outline-none" placeholder="0" /></div>
+                                    </section>
 
-                            <section>
-                                <div className="flex justify-between items-center mb-3">
-                                    <h2 className="text-md font-bold text-slate-700">2. Register</h2>
-                                    <div className="flex gap-2">
-                                        <button onClick={generateShareLink} className="flex items-center gap-1 text-xs text-green-600 font-bold bg-green-50 px-2 py-1 rounded hover:bg-green-100 border border-green-200">
-                                            <IconShare /> 🔗 Share Setup
-                                        </button>
-                                        <button onClick={() => setShowSettings(!showSettings)} className="flex items-center gap-1 text-xs text-blue-600 font-bold bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 border border-blue-200">
-                                            <IconSettings /> {showSettings ? 'Hide Rates' : 'Edit Rates'}
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {showSettings && (
-                                    <div className="mb-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200 grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
-                                        <div><label className="text-xs font-bold text-yellow-800 block mb-1">House Fixed</label><div className="flex items-center bg-white px-1 rounded border border-yellow-300"><span className="text-xs font-bold text-yellow-600 px-1">₹</span><input type="number" value={houseRate} onChange={(e) => setHouseRate(e.target.value)} className="w-full p-1 outline-none text-sm" /></div></div>
-                                        <div><label className="text-xs font-bold text-yellow-800 block mb-1">Shop Fixed</label><div className="flex items-center bg-white px-1 rounded border border-yellow-300"><span className="text-xs font-bold text-yellow-600 px-1">₹</span><input type="number" value={shopRate} onChange={(e) => setShopRate(e.target.value)} className="w-full p-1 outline-none text-sm" /></div></div>
-                                    </div>
-                                )}
-
-                                <div className="space-y-3">
-                                    {members.map((member) => (
-                                        <div key={member.id} className="flex flex-col gap-2 p-3 bg-white rounded-lg border border-slate-200 shadow-sm">
-                                            <div className="flex gap-2">
-                                                <div className="w-1/3"><input type="text" value={member.unit || ''} onChange={(e) => handleUpdateMember(member.id, 'unit', e.target.value)} className="w-full font-bold text-md p-1 outline-none bg-slate-50 rounded border border-slate-200 focus:border-blue-200 text-center uppercase" placeholder="Unit" /></div>
-                                                <div className="flex-grow flex justify-between items-center gap-2"><input type="text" value={member.name} onChange={(e) => handleUpdateMember(member.id, 'name', e.target.value)} className="flex-grow font-semibold text-md p-1 outline-none bg-transparent border-b border-transparent focus:border-blue-200 placeholder:font-normal" placeholder="Tenant Name" /><button onClick={() => handleRemoveMember(member.id)} className="p-1 text-slate-300 hover:text-red-500"><IconTrash2 /></button></div>
+                                    <section>
+                                        <div className="flex justify-between items-center mb-3">
+                                            <h2 className="text-md font-bold text-slate-700">2. Register</h2>
+                                            <button onClick={()=>setShowSettings(!showSettings)} className="flex items-center gap-1 text-xs text-blue-600 font-bold bg-blue-50 px-2 py-1 rounded border border-blue-200"><Icons.Settings /> {showSettings?'Hide Rates':'Edit Rates'}</button>
+                                        </div>
+                                        {showSettings && (
+                                            <div className="mb-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200 grid grid-cols-2 gap-4">
+                                                <div><label className="text-xs font-bold text-yellow-800 block mb-1">House Fixed</label><input type="number" value={houseRate} onChange={e=>setHouseRate(e.target.value)} className="w-full p-1 border rounded" /></div>
+                                                <div><label className="text-xs font-bold text-yellow-800 block mb-1">Shop Fixed</label><input type="number" value={shopRate} onChange={e=>setShopRate(e.target.value)} className="w-full p-1 border rounded" /></div>
                                             </div>
-                                            <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-md">
-                                                <div className="flex-grow select-wrapper">
-                                                    <select value={member.type} onChange={(e) => handleUpdateMember(member.id, 'type', e.target.value)} className="w-full bg-transparent text-sm font-medium text-slate-600 outline-none appearance-none">
-                                                        <option value="family">Family (Count)</option>
-                                                        <option value="house">Fixed House (₹{houseRate})</option>
-                                                        <option value="shop">Fixed Shop (₹{shopRate})</option>
-                                                        <option value="vacant">Vacant (₹0)</option>
-                                                    </select>
+                                        )}
+                                        <div className="space-y-3">
+                                            {members.map(m => (
+                                                <div key={m.id} className="flex flex-col gap-2 p-3 bg-white rounded-lg border border-slate-200 shadow-sm">
+                                                    <div className="flex gap-2">
+                                                        <div className="w-1/3"><input type="text" value={m.unit} onChange={e=>handleUpdateMember(m.id,'unit',e.target.value)} className="w-full font-bold p-1 bg-slate-50 rounded border text-center uppercase" placeholder="Unit" /></div>
+                                                        <div className="flex-grow flex gap-2"><input type="text" value={m.name} onChange={e=>handleUpdateMember(m.id,'name',e.target.value)} className="w-full font-semibold p-1 border-b focus:border-blue-500 outline-none" placeholder="Name" /><button onClick={()=>handleRemoveMember(m.id)} className="text-slate-300 hover:text-red-500"><Icons.Trash /></button></div>
+                                                    </div>
+                                                    <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-md">
+                                                        <div className="flex-grow select-wrapper"><select value={m.type} onChange={e=>handleUpdateMember(m.id,'type',e.target.value)} className="w-full bg-transparent text-sm font-medium outline-none appearance-none"><option value="family">Family</option><option value="house">Fixed House</option><option value="shop">Fixed Shop</option><option value="vacant">Vacant</option></select></div>
+                                                        {m.type==='family' && <div className="flex items-center gap-1 bg-white rounded px-2 border"><span className="text-[10px] text-slate-400 font-bold">MEMBERS</span><input type="number" value={m.count} onChange={e=>handleUpdateMember(m.id,'count',e.target.value)} className="w-10 text-center font-bold outline-none" /></div>}
+                                                    </div>
                                                 </div>
-                                                {member.type === 'family' ? (
-                                                    <div className="flex items-center gap-1 bg-white rounded px-2 border border-slate-200"><span className="text-[10px] text-slate-400 uppercase font-bold">Members</span><input type="number" value={member.count} onChange={(e) => handleUpdateMember(member.id, 'count', e.target.value)} className="w-10 text-center p-1 outline-none font-bold" /></div>
-                                                ) : member.type === 'vacant' ? (
-                                                     <div className="flex items-center bg-slate-200 rounded px-3 py-1 border border-slate-300 opacity-70"><span className="text-xs font-bold text-slate-600">₹0</span></div>
-                                                ) : (
-                                                    <div className="flex items-center bg-slate-200 rounded px-3 py-1 border border-slate-300 opacity-70"><span className="text-xs font-bold text-slate-600">₹{member.type === 'house' ? houseRate : shopRate}</span></div>
-                                                )}
+                                            ))}
+                                        </div>
+                                        <button onClick={handleAddMember} className="mt-4 flex items-center justify-center gap-2 text-blue-600 font-bold text-sm w-full py-2 border border-dashed border-blue-200 rounded-lg hover:bg-blue-50"><Icons.Plus /> Add Unit</button>
+                                    </section>
+
+                                    <button onClick={calculate} className="w-full py-3 bg-blue-600 text-white text-lg font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 active:scale-95 transition"><Icons.Calc /> CALCULATE</button>
+
+                                    {result && (
+                                        <div className="animate-in fade-in slide-in-from-bottom-4">
+                                            <div className="bg-slate-800 text-white p-5 rounded-t-2xl mt-4">
+                                                <div className="flex justify-between items-end"><span className="text-slate-400 font-medium text-sm">Total</span><span className="text-3xl font-bold text-green-400">₹{result.totalBill.toLocaleString()}</span></div>
+                                                <div className="mt-2 text-xs text-slate-400 flex justify-between">
+                                                    <span>Rate: ₹{result.perPerson.toFixed(2)}/head</span>
+                                                    <button onClick={saveToHistory} className="flex items-center gap-1 text-white bg-slate-600 px-2 py-1 rounded hover:bg-slate-500"><Icons.Save /> Save to History</button>
+                                                </div>
+                                            </div>
+                                            <div className="bg-white border-x border-b border-slate-200 rounded-b-2xl p-4 shadow-lg">
+                                                <div className="divide-y divide-slate-100">
+                                                    {result.breakdown.map(item => (
+                                                        <div key={item.id} className="py-3 flex justify-between items-center">
+                                                            <div>
+                                                                <div className="font-bold text-slate-700 text-sm">{item.unit && <span className="bg-slate-100 px-1 rounded mr-2 text-xs border">{item.unit}</span>}{item.name||'Unknown'}</div>
+                                                                <div className="text-xs text-slate-400">{item.detail}</div>
+                                                            </div>
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="font-bold text-lg">₹{Math.round(item.amount)}</div>
+                                                                {item.amount > 0 && <button onClick={()=>sendIndividualReminder(item, result.date)} className="p-2 bg-green-100 text-green-600 rounded-full hover:bg-green-200" title="Send WhatsApp Reminder"><Icons.Send /></button>}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                <button onClick={shareFullBill} className="w-full mt-4 py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md"><Icons.Copy /> Copy Full List</button>
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
-                                <button onClick={handleAddMember} className="mt-4 flex items-center gap-2 text-blue-600 font-bold text-sm px-2 py-2 w-full justify-center border border-dashed border-blue-200 rounded-lg hover:bg-blue-50"><IconPlus /> Add New Unit</button>
-                            </section>
-                            <button onClick={calculate} className="w-full py-3 bg-blue-600 text-white text-lg font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 hover:bg-blue-700 active:scale-95 transition"><IconCalculator /> CALCULATE SHARES</button>
-                            {result && (
-                                <div className="animate-bounce-in">
-                                    <div className="bg-slate-800 text-white p-5 rounded-t-2xl mt-4">
-                                        <div className="flex justify-between items-end"><span className="text-slate-400 font-medium text-sm">Total Collection</span><span className="text-3xl font-bold text-green-400">₹{result.totalBill.toLocaleString()}</span></div>
-                                        <div className="mt-3 pt-3 border-t border-slate-600 text-xs text-slate-400 space-y-1"><div className="flex justify-between"><span>Total Fixed Collected:</span> <span>-₹{result.totalActualCollection.toFixed(0)}</span></div><div className="flex justify-between"><span>Remaining for Families:</span> <span>₹{result.remainingBill.toFixed(2)}</span></div><div className="flex justify-between font-mono text-green-300 pt-1"><span>Family Rate:</span> <span>₹{result.perPersonCost.toFixed(2)} / head</span></div></div>
+                                    )}
+                                </>
+                            )}
+
+                            {/* HISTORY TAB */}
+                            {activeTab === 'history' && (
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-center">
+                                        <h2 className="font-bold text-lg">Past Calculations</h2>
+                                        <button onClick={downloadExcel} className="flex items-center gap-1 text-xs bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700"><Icons.Download /> Export CSV</button>
                                     </div>
-                                    <div className="border-x border-b border-slate-200 rounded-b-2xl bg-white p-4 shadow-lg">
-                                        <div className="divide-y divide-slate-100">{result.breakdown.map((item) => (<div key={item.id} className="py-2 flex justify-between items-center group hover:bg-slate-50"><div><div className="font-bold text-slate-700 text-sm">{item.unit && <span className="inline-block bg-slate-100 px-1 rounded mr-2 text-xs border border-slate-200 text-slate-500">{item.unit}</span>}{item.name || 'Unknown'}</div><div className="text-xs text-slate-400">{item.detail}</div></div><div className="font-bold text-lg">₹{Math.round(item.amount).toLocaleString()}</div></div>))}</div>
-                                        <button onClick={copyToClipboard} className="w-full mt-6 py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md"><IconCopy /> Share on WhatsApp</button>
-                                    </div>
+                                    {history.length === 0 ? (
+                                        <p className="text-center text-slate-400 py-10">No history saved yet.</p>
+                                    ) : (
+                                        history.map((h, idx) => (
+                                            <div key={idx} className={`bg-white border rounded-xl p-4 shadow-sm relative cursor-pointer history-card ${expandedHistory === idx ? 'history-expanded' : 'border-slate-200'}`} onClick={() => setExpandedHistory(expandedHistory === idx ? null : idx)}>
+                                                <button onClick={(e)=>deleteHistory(idx, e)} className="absolute top-2 right-2 text-slate-300 hover:text-red-500 z-10"><Icons.Trash /></button>
+                                                
+                                                {/* History Summary */}
+                                                <div className="pr-8">
+                                                    <div className="font-bold text-slate-700 mb-1 flex items-center gap-2">
+                                                        {h.date} 
+                                                        {expandedHistory === idx ? <Icons.ChevronUp /> : <Icons.ChevronDown />}
+                                                    </div>
+                                                    <div className="flex justify-between text-sm">
+                                                        <span className="text-slate-500">Total Bill:</span>
+                                                        <span className="font-bold">₹{h.totalBill}</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Expanded Details (For Reminders) */}
+                                                {expandedHistory === idx && (
+                                                    <div className="mt-4 pt-4 border-t border-slate-300 animate-in fade-in slide-in-from-top-1">
+                                                        <div className="text-xs text-slate-500 mb-3 bg-white p-2 rounded border">
+                                                            Water: {h.water} | Motor: {h.motor} | Tanker: {h.tanker}
+                                                        </div>
+                                                        <div className="divide-y divide-slate-200">
+                                                            {h.breakdown.map((item, i) => (
+                                                                <div key={i} className="py-2 flex justify-between items-center">
+                                                                    <div>
+                                                                        <div className="font-bold text-sm text-slate-700">{item.unit} {item.name}</div>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="font-bold text-sm">₹{Math.round(item.amount)}</span>
+                                                                        {item.amount > 0 && 
+                                                                            <button 
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation(); // Prevent toggling accordion
+                                                                                    sendIndividualReminder(item, h.date);
+                                                                                }} 
+                                                                                className="p-1.5 bg-green-100 text-green-600 rounded-full hover:bg-green-200"
+                                                                            >
+                                                                                <Icons.Send />
+                                                                            </button>
+                                                                        }
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))
+                                    )}
                                 </div>
                             )}
+
                         </div>
                     </div>
-                    <div className="text-center mt-8 opacity-60 hover:opacity-100 transition-opacity"><p className="text-sm font-medium text-slate-500">Developed by Babu Mani (@ChartWizMani)</p></div>
+                    <div className="text-center mt-8 opacity-60"><p className="text-sm font-medium text-slate-500">Developed by Babu Mani (@ChartWizMani)</p></div>
                 </div>
             );
         }
