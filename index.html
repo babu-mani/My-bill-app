@@ -1,12 +1,12 @@
 <!-- 
-    Bill Splitter App 
+    Bill Splitter App v3.0 Sharing fixed
     Developed by Babu Mani (@ChartWizMani)
 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Bill Splitter - Cloud</title>
     
     <!-- Tailwind CSS -->
@@ -73,7 +73,6 @@
         ];
 
         function App() {
-            // State
             const [activeTab, setActiveTab] = useState('calc'); 
             const [historyView, setHistoryView] = useState('list');
             const [waterBill, setWaterBill] = useState('');
@@ -96,7 +95,6 @@
             const [isCloudActive, setIsCloudActive] = useState(false);
             const [syncStatus, setSyncStatus] = useState('');
 
-            // Sync Lock to prevent race conditions
             const ignoreRemoteUpdate = useRef(false);
 
             // 1. Initial Load
@@ -173,6 +171,19 @@
                     }
                 } else {
                     setIsCloudActive(true);
+                }
+            };
+
+            // NEW: Helper to open WhatsApp Smartly
+            const openWhatsApp = (text) => {
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                const encoded = encodeURIComponent(text);
+                if (isMobile) {
+                    // Try specific scheme to force app
+                    window.location.href = `whatsapp://send?text=${encoded}`;
+                } else {
+                    // Desktop fallback
+                    window.open(`https://web.whatsapp.com/send?text=${encoded}`, '_blank');
                 }
             };
 
@@ -287,6 +298,13 @@
                 const link = document.createElement("a"); link.href = encodeURI("data:text/csv;charset=utf-8,"+csv); link.download = "history.csv"; link.click();
             };
             
+            const sendIndividualReminder = (item, billDate) => {
+                if(item.amount <= 0) return;
+                const due = item.amount - (item.paidAmount || 0);
+                const msg = `Hi ${item.name} (${item.unit}), bill share${billDate?` (${billDate.split(',')[0]})`:''} total is ₹${Math.round(item.amount)}. You have paid ₹${item.paidAmount||0}. Remaining Due: ₹${Math.round(due)}. Please pay.`;
+                openWhatsApp(msg);
+            };
+            
             const shareFullBill = () => {
                 let text = ``;
                 if(result.water > 0) text += `Water Bill: ₹${result.water}\n`;
@@ -300,7 +318,14 @@
                     const namePart = i.name || 'Unknown';
                     text += `${unitPart}${namePart}: ₹${Math.round(i.amount)}\n`;
                 });
-                const t = document.createElement("textarea"); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); alert('Copied!');
+                
+                // Try to share via Web Share API (native mobile share)
+                if (navigator.share) {
+                    navigator.share({ title: 'Bill Details', text: text }).catch(console.error);
+                } else {
+                    // Fallback to copy
+                    const t = document.createElement("textarea"); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); alert('Copied!');
+                }
             };
             
             const reset = () => { if(confirm("Reset all?")) { setMembers(DEFAULT_MEMBERS); setWaterBill(''); setMotorBill(''); setTankerBill(''); setResult(null); }};
@@ -470,7 +495,7 @@
                                                         </div>
                                                     ))}
                                                 </div>
-                                                <button onClick={shareFullBill} className="w-full mt-4 py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md"><Icons.Copy /> Copy Full List</button>
+                                                <button onClick={shareFullBill} className="w-full mt-4 py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md"><Icons.Copy /> Share Full List</button>
                                             </div>
                                         </div>
                                     )}
