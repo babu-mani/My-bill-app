@@ -1,5 +1,5 @@
 <!-- 
-    Bill Splitter App v5.0 (Copy Image )
+    Bill Splitter App v6.0(Copy Image + fixing icon)
     Developed by Babu Mani (@ChartWizMani)
 -->
 <!DOCTYPE html>
@@ -94,6 +94,7 @@
         ];
 
         function App() {
+            // State
             const [activeTab, setActiveTab] = useState('calc'); 
             const [historyView, setHistoryView] = useState('list');
             const [waterBill, setWaterBill] = useState('');
@@ -203,6 +204,42 @@
                 } else {
                     setIsCloudActive(true);
                 }
+            };
+
+            // --- COPY IMAGE FUNCTION ---
+            const copyImage = () => {
+                const captureDiv = document.getElementById('receipt-capture');
+                captureDiv.style.left = "0"; // Move into view (temporarily)
+                
+                // Use scale 2 for high quality
+                html2canvas(captureDiv, { scale: 2, backgroundColor: "#ffffff", useCORS: true }).then(canvas => {
+                    captureDiv.style.left = "-9999px"; // Hide again
+                    canvas.toBlob(blob => {
+                        try {
+                            const item = new ClipboardItem({ 'image/png': blob });
+                            navigator.clipboard.write([item]).then(() => {
+                                alert("Receipt Image Copied to Clipboard! \nNow Paste it in WhatsApp.");
+                            }).catch(err => {
+                                console.error(err);
+                                alert("Copy failed. Try 'Download Image' instead.");
+                            });
+                        } catch (e) {
+                            alert("Your browser doesn't support Image Copy. Please use 'Download Image'.");
+                        }
+                    });
+                });
+            };
+
+            const downloadImage = () => {
+                const captureDiv = document.getElementById('receipt-capture');
+                captureDiv.style.left = "0";
+                html2canvas(captureDiv, { scale: 2 }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = `Bill-${result.billMonthName}.jpg`;
+                    link.href = canvas.toDataURL('image/jpeg', 0.9);
+                    link.click();
+                    captureDiv.style.left = "-9999px";
+                });
             };
 
             const openWhatsApp = (text) => {
@@ -337,42 +374,6 @@
                 const link = document.createElement("a"); link.href = encodeURI("data:text/csv;charset=utf-8,"+csv); link.download = "history.csv"; link.click();
             };
             
-            // --- COPY IMAGE FUNCTION ---
-            const copyImage = () => {
-                const captureDiv = document.getElementById('receipt-capture');
-                captureDiv.style.left = "0"; // Move into view (temporarily)
-                
-                // Use scale 2 for high quality
-                html2canvas(captureDiv, { scale: 2, backgroundColor: "#ffffff" }).then(canvas => {
-                    captureDiv.style.left = "-9999px"; // Hide again
-                    canvas.toBlob(blob => {
-                        try {
-                            const item = new ClipboardItem({ 'image/png': blob });
-                            navigator.clipboard.write([item]).then(() => {
-                                alert("Receipt Image Copied to Clipboard! \nNow Paste it in WhatsApp.");
-                            }).catch(err => {
-                                console.error(err);
-                                alert("Copy failed. Try 'Download Image' instead.");
-                            });
-                        } catch (e) {
-                            alert("Your browser doesn't support Image Copy. Please use 'Download Image'.");
-                        }
-                    });
-                });
-            };
-
-            const downloadImage = () => {
-                const captureDiv = document.getElementById('receipt-capture');
-                captureDiv.style.left = "0";
-                html2canvas(captureDiv, { scale: 2 }).then(canvas => {
-                    const link = document.createElement('a');
-                    link.download = `Bill-${result.billMonthName}.jpg`;
-                    link.href = canvas.toDataURL('image/jpeg', 0.9);
-                    link.click();
-                    captureDiv.style.left = "-9999px";
-                });
-            };
-
             const sendIndividualReminder = (item, billDate) => {
                 if(item.amount <= 0) return;
                 const due = item.amount - (item.paidAmount || 0);
@@ -385,19 +386,24 @@
                 if(result.water > 0) text += `Water Bill: ₹${result.water}\n`;
                 if(result.motor > 0) text += `Motor Bill: ₹${result.motor}\n`;
                 if(result.tanker > 0) text += `Tanker Bill: ₹${result.tanker}\n`;
+                
                 text += `\n*Bill - ${result.billMonthName}*\n`;
                 text += `Total: ₹${result.totalBill}\n`;
                 if(result.perPerson > 0) text += `Rate: ₹${result.perPerson.toFixed(2)}/head\n\n`;
+                
                 result.breakdown.forEach(i => {
+                    // Format: "101 Name : ₹Amount"
                     const unitPart = i.unit ? `${i.unit} ` : '';
                     const namePart = i.name || 'Unknown';
-                    text += `${unitPart}${namePart}: ₹${Math.round(i.amount)}\n`;
+                    text += `${unitPart}${namePart} : ₹${Math.round(i.amount)}\n`;
                 });
-                const t = document.createElement("textarea"); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); alert('Copied!');
+                
+                const t = document.createElement("textarea"); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); alert('Copied to Clipboard!');
             };
             
             const reset = () => { if(confirm("Reset all?")) { setMembers(DEFAULT_MEMBERS); setWaterBill(''); setMotorBill(''); setTankerBill(''); setResult(null); }};
 
+            // Stats Logic (Same as before)
             const getUniqueYears = () => {
                 const years = new Set([new Date().getFullYear().toString()]); 
                 years.add((new Date().getFullYear() + 1).toString());
@@ -408,7 +414,6 @@
                 });
                 return Array.from(years).sort().reverse(); 
             };
-
             const calculateStats = () => {
                 const stats = { water: 0, motor: 0, tanker: 0, grand: 0, paidTotal: 0, members: {} };
                 history.forEach(h => {
@@ -565,7 +570,7 @@
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-3 mt-4">
                                                     <button onClick={shareFullBill} className="py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md text-xs"><Icons.Copy /> Copy Text</button>
-                                                    <button onClick={copyImage} className="py-3 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md text-xs"><Icons.CopyImage /> Copy Image</button>
+                                                    <button onClick={copyImage} className="py-3 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md text-xs"><Icons.Copy /> Copy Image</button>
                                                     <button onClick={downloadImage} className="py-3 bg-slate-500 hover:bg-slate-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md text-xs col-span-2"><Icons.Image /> Save Image</button>
                                                 </div>
                                             </div>
@@ -680,36 +685,61 @@
                     </div>
                     
                     {/* HIDDEN RECEIPT GENERATOR */}
-                    <div id="receipt-capture" className="absolute top-0 left-[-9999px] bg-white p-6 w-[400px]">
+                    <div id="receipt-capture">
                         {result && (
-                            <div className="border border-slate-300 p-4 rounded-xl">
-                                <div className="text-center mb-4">
-                                    <h2 className="text-xl font-bold text-slate-800">Bill - {result.billMonthName}</h2>
-                                    <div className="text-sm text-slate-500">Monthly Utility Breakdown</div>
+                            <div>
+                                <div className="receipt-header">
+                                    <h1 className="text-2xl font-bold text-slate-800">Bill - {result.billMonthName}</h1>
+                                    <p className="text-sm text-slate-500 font-medium uppercase tracking-wide mt-1">Monthly Utility Breakdown</p>
                                 </div>
-                                <div className="space-y-2 text-sm border-b pb-3 mb-3">
-                                    {result.water > 0 && <div className="flex justify-between"><span>Water</span><span className="font-bold">₹{result.water}</span></div>}
-                                    {result.motor > 0 && <div className="flex justify-between"><span>Motor</span><span className="font-bold">₹{result.motor}</span></div>}
-                                    {result.tanker > 0 && <div className="flex justify-between"><span>Tanker</span><span className="font-bold">₹{result.tanker}</span></div>}
+
+                                {/* Summary Box */}
+                                <div className="bg-slate-50 rounded-lg p-4 mb-6 border border-slate-200">
+                                    <div className="grid grid-cols-3 gap-2 text-center mb-3 text-xs text-slate-500 font-semibold uppercase tracking-wider">
+                                        <div>Water</div>
+                                        <div>Motor</div>
+                                        <div>Tanker</div>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-2 text-center mb-4 text-sm font-bold text-slate-700">
+                                        <div>₹{result.water}</div>
+                                        <div>₹{result.motor}</div>
+                                        <div>₹{result.tanker}</div>
+                                    </div>
+                                    <div className="border-t border-slate-200 pt-3 flex justify-between items-center">
+                                        <span className="text-sm font-bold text-slate-600">Total Payable</span>
+                                        <span className="text-2xl font-bold text-blue-600">₹{result.totalBill}</span>
+                                    </div>
+                                    {result.perPerson > 0 && (
+                                        <div className="text-center mt-2 text-xs text-slate-400">
+                                            Rate per Head: ₹{result.perPerson.toFixed(2)}
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="flex justify-between text-lg font-bold text-blue-600 mb-4">
-                                    <span>Total Payable</span>
-                                    <span>₹{result.totalBill}</span>
-                                </div>
-                                <div className="space-y-2">
+
+                                {/* Detailed List */}
+                                <div className="space-y-1">
                                     {result.breakdown.map((item, i) => (
-                                        <div key={i} className="flex flex-col py-1 border-b border-dashed border-slate-200">
-                                            <div className="flex justify-between">
-                                                <span className="font-semibold text-slate-700">
-                                                    {item.unit ? <span className="bg-slate-100 border border-slate-300 px-1 rounded mr-1 text-xs">{item.unit}</span> : ''} {item.name || 'Unknown'}
-                                                </span>
-                                                <span className="font-bold">₹{Math.round(item.amount)}</span>
+                                        <div key={i} className="receipt-row">
+                                            <div>
+                                                <div className="font-bold text-slate-700 text-base">
+                                                    {item.unit && <span className="unit-badge">{item.unit}</span>}
+                                                    {item.name || 'Unknown'}
+                                                </div>
+                                                <div className="text-xs text-slate-400 mt-0.5 ml-1">
+                                                    {item.detail}
+                                                </div>
                                             </div>
-                                            <div className="text-xs text-slate-400 pl-1">{item.detail}</div>
+                                            <div className="font-bold text-lg text-slate-800">
+                                                ₹{Math.round(item.amount)}
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
-                                <div className="mt-6 text-center text-[10px] text-slate-400">Developed by Babu Mani (@ChartWizMani)</div>
+
+                                {/* Footer Watermark */}
+                                <div className="mt-8 pt-4 border-t border-slate-100 text-center text-xs text-slate-400">
+                                    Bill Splitter Developed by Babu Mani (@ChartWizMani)
+                                </div>
                             </div>
                         )}
                     </div>
