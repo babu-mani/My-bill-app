@@ -1,5 +1,5 @@
 <!-- 
-    Bill Splitter App v4.0
+    Bill Splitter App v4.0 Image Generator + Text)
     Developed by Babu Mani (@ChartWizMani)
 -->
 <!DOCTYPE html>
@@ -21,6 +21,9 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
+    <!-- HTML2CANVAS (For Image Generation) -->
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+
     <!-- Styles -->
     <style>
         body { -webkit-tap-highlight-color: transparent; background-color: #f8fafc; user-select: none; }
@@ -34,6 +37,9 @@
         .status-btn { transition: all 0.2s; }
         .status-btn:active { transform: scale(0.9); }
         .modal-overlay { background-color: rgba(0,0,0,0.5); position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; }
+        
+        /* Receipt Styles (Hidden until generation) */
+        #receipt-capture { position: absolute; left: -9999px; top: 0; width: 400px; background: white; padding: 20px; border-radius: 10px; }
     </style>
 </head>
 <body>
@@ -49,6 +55,7 @@
             Trash: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>,
             Plus: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>,
             Copy: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>,
+            Image: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>,
             Settings: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
             Save: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>,
             Download: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>,
@@ -95,14 +102,13 @@
             const [cloudConfig, setCloudConfig] = useState({ apiKey: '', projectId: '' });
             const [isCloudActive, setIsCloudActive] = useState(false);
             const [syncStatus, setSyncStatus] = useState('');
-            const [isLoading, setIsLoading] = useState(false);
 
             const ignoreRemoteUpdate = useRef(false);
 
             // 1. Initial Load
             useEffect(() => {
                 const loadSafe = (key) => { try { return JSON.parse(localStorage.getItem(key)) } catch (e) { return null; }};
-                const savedData = loadSafe('billSplitterData_v18'); // Updated version key
+                const savedData = loadSafe('billSplitterData_v20'); 
                 const savedCloud = loadSafe('billSplitterCloudConfig');
                 
                 if (savedData) {
@@ -127,7 +133,7 @@
             // 2. Data Persistence
             useEffect(() => {
                 const dataToSave = { members, houseRate, shopRate, waterBill, motorBill, tankerBill, billMonth };
-                localStorage.setItem('billSplitterData_v18', JSON.stringify(dataToSave));
+                localStorage.setItem('billSplitterData_v20', JSON.stringify(dataToSave));
                 localStorage.setItem('billSplitterHistory', JSON.stringify(history));
 
                 if (isCloudActive && window.firebaseApp && !ignoreRemoteUpdate.current) {
@@ -156,31 +162,20 @@
 
                         const db = firebase.firestore();
                         setIsCloudActive(true);
-                        setIsLoading(true);
                         
                         db.collection("bills").doc("current_data").onSnapshot((doc) => { if (doc.exists) { /* Sync logic */ } });
-                        
-                        // FIX: Added error handling and loading state
                         db.collection("bills").doc("history").onSnapshot((doc) => { 
-                            setIsLoading(false);
                             if (ignoreRemoteUpdate.current) return;
-                            
-                            // FIX: Corrected syntax check for v8
-                            if(doc.exists) {
+                            if(doc.exists()) {
                                 const data = doc.data();
                                 if(data.records) setHistory(data.records); 
                             } else {
                                 setHistory([]);
                             }
-                        }, (error) => {
-                            setIsLoading(false);
-                            console.error("Cloud Read Error:", error);
-                            alert("Error reading from Cloud. Check API Key permissions.");
                         });
                     } catch (e) {
                         alert("Error connecting to Cloud. Check keys.");
                         setIsCloudActive(false);
-                        setIsLoading(false);
                     }
                 } else {
                     setIsCloudActive(true);
@@ -228,20 +223,31 @@
                     const scale = fixedCollection > 0 ? totalBill / fixedCollection : 0;
                     finalHRate = hRate * scale; finalSRate = sRate * scale;
                 } else {
-                    remaining = totalBill - fixedCollection; perPerson = totalVariableMembers > 0 ? remaining / totalVariableMembers : 0;
+                    remaining = totalBill - fixedCollection;
+                    perPerson = totalVariableMembers > 0 ? remaining / totalVariableMembers : 0;
                 }
 
+                let calculatedTotal = 0;
                 const breakdown = members.map(m => {
                     let amount = 0, detail = '';
-                    if (m.type === 'house') { amount = finalHRate; detail = 'Fixed House'; }
-                    else if (m.type === 'shop') { amount = finalSRate; detail = 'Fixed Shop'; }
+                    if (m.type === 'house') { amount = Math.round(finalHRate); detail = 'Fixed House'; }
+                    else if (m.type === 'shop') { amount = Math.round(finalSRate); detail = 'Fixed Shop'; }
                     else if (m.type === 'vacant') { amount = 0; detail = 'Vacant'; }
                     else { 
-                        amount = (parseInt(m.count) || 0) * perPerson; 
+                        amount = Math.round((parseInt(m.count) || 0) * perPerson); 
                         detail = `${m.count} members × ₹${perPerson.toFixed(2)}`; 
                     }
+                    calculatedTotal += amount;
                     return { ...m, amount, detail, paidAmount: 0 }; 
                 });
+
+                const difference = totalBill - calculatedTotal; 
+                if (difference !== 0 && totalVariableMembers > 0) {
+                    const firstFamilyIndex = breakdown.findIndex(m => m.type === 'family' && m.amount > 0);
+                    if (firstFamilyIndex !== -1) {
+                        breakdown[firstFamilyIndex].amount += difference;
+                    }
+                }
                 
                 const [year, month] = billMonth.split('-');
                 const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
@@ -308,24 +314,53 @@
                 const link = document.createElement("a"); link.href = encodeURI("data:text/csv;charset=utf-8,"+csv); link.download = "history.csv"; link.click();
             };
             
+            // --- NEW: GENERATE RECEIPT IMAGE ---
+            const downloadImage = () => {
+                const captureDiv = document.getElementById('receipt-capture');
+                // Temporarily show the div
+                captureDiv.style.left = "0";
+                
+                html2canvas(captureDiv).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = `Bill-${result.billMonthName}.jpg`;
+                    link.href = canvas.toDataURL('image/jpeg', 0.9);
+                    link.click();
+                    // Hide again
+                    captureDiv.style.left = "-9999px";
+                });
+            };
+
+            const sendIndividualReminder = (item, billDate) => {
+                if(item.amount <= 0) return;
+                const due = item.amount - (item.paidAmount || 0);
+                const msg = `Hi ${item.name} (${item.unit}), bill share${billDate?` (${billDate.split(',')[0]})`:''} total is ₹${Math.round(item.amount)}. You have paid ₹${item.paidAmount||0}. Remaining Due: ₹${Math.round(due)}. Please pay.`;
+                openWhatsApp(msg);
+            };
+            
+            // --- UPDATED: EXACT TEXT FORMAT COPY ---
             const shareFullBill = () => {
                 let text = ``;
                 if(result.water > 0) text += `Water Bill: ₹${result.water}\n`;
                 if(result.motor > 0) text += `Motor Bill: ₹${result.motor}\n`;
                 if(result.tanker > 0) text += `Tanker Bill: ₹${result.tanker}\n`;
+                
                 text += `\n*Bill - ${result.billMonthName}*\n`;
                 text += `Total: ₹${result.totalBill}\n`;
                 if(result.perPerson > 0) text += `Rate: ₹${result.perPerson.toFixed(2)}/head\n\n`;
+                
                 result.breakdown.forEach(i => {
+                    // Format: "101 Name : ₹Amount"
                     const unitPart = i.unit ? `${i.unit} ` : '';
                     const namePart = i.name || 'Unknown';
-                    text += `${unitPart}${namePart}: ₹${Math.round(i.amount)}\n`;
+                    text += `${unitPart}${namePart} : ₹${Math.round(i.amount)}\n`;
                 });
-                const t = document.createElement("textarea"); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); alert('Copied!');
+                
+                const t = document.createElement("textarea"); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); alert('Copied to Clipboard!');
             };
             
             const reset = () => { if(confirm("Reset all?")) { setMembers(DEFAULT_MEMBERS); setWaterBill(''); setMotorBill(''); setTankerBill(''); setResult(null); }};
 
+            // Stats Logic (Same as before)
             const getUniqueYears = () => {
                 const years = new Set([new Date().getFullYear().toString()]); 
                 years.add((new Date().getFullYear() + 1).toString());
@@ -336,7 +371,6 @@
                 });
                 return Array.from(years).sort().reverse(); 
             };
-
             const calculateStats = () => {
                 const stats = { water: 0, motor: 0, tanker: 0, grand: 0, paidTotal: 0, members: {} };
                 history.forEach(h => {
@@ -367,7 +401,7 @@
                     <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
                         {/* HEADER */}
                         <div className="bg-blue-600 p-6 text-white flex justify-between items-center">
-                            <div><h1 className="text-2xl font-bold">Bill Splitter</h1><p className="text-blue-100 opacity-90 text-sm">Cloud Edition {isCloudActive && '⚡'}</p></div>
+                            <div><h1 className="text-2xl font-bold">Bill Splitter</h1><p className="text-blue-100 opacity-90 text-sm">Cloud Accountant</p></div>
                             <div className="flex gap-2">
                                 <button onClick={()=>setShowCloudSetup(true)} className={`p-2 rounded-full transition ${isCloudActive ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-500 hover:bg-blue-400'}`} title="Cloud Setup">{isCloudActive ? <Icons.Cloud /> : <Icons.CloudOff />}</button>
                                 <button onClick={reset} className="p-2 bg-blue-500 rounded-full hover:bg-blue-400" title="Reset"><Icons.Reset /></button>
@@ -491,7 +525,10 @@
                                                         </div>
                                                     ))}
                                                 </div>
-                                                <button onClick={shareFullBill} className="w-full mt-4 py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md"><Icons.Copy /> Copy Full List</button>
+                                                <div className="grid grid-cols-2 gap-3 mt-4">
+                                                    <button onClick={shareFullBill} className="py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md"><Icons.Copy /> Copy Text</button>
+                                                    <button onClick={downloadImage} className="py-3 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md"><Icons.Image /> Get Image</button>
+                                                </div>
                                             </div>
                                         </div>
                                     )}
@@ -511,10 +548,8 @@
                                             <button onClick={downloadExcel} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200" title="Download Excel"><Icons.Download /></button>
                                         </div>
                                     </div>
-                                    
-                                    {isLoading && <div className="text-center text-blue-500 py-4 font-bold">Loading Data from Cloud...</div>}
 
-                                    {!isLoading && history.length === 0 ? <p className="text-center text-slate-400 py-10">No history saved yet.</p> : !isLoading && (
+                                    {history.length === 0 ? <p className="text-center text-slate-400 py-10">No history saved yet.</p> : (
                                         <>
                                             {/* STATS VIEW */}
                                             {historyView === 'stats' && (
@@ -577,7 +612,7 @@
                                                             <div className="text-xs text-slate-500 mb-3 bg-white p-2 rounded border">Water: {h.water} | Motor: {h.motor} | Tanker: {h.tanker}</div>
                                                             <div className="divide-y divide-slate-200">{h.breakdown.map((item, i) => (
                                                                 <div key={i} className="py-2 flex justify-between items-center">
-                                                                    <div><div className="font-bold text-sm text-slate-700">{item.unit} {item.name}</div><div className="text-[10px] text-slate-400">{item.detail}</div></div>
+                                                                    <div><div className="font-bold text-sm text-slate-700">{item.unit} {item.name}</div></div>
                                                                     <div className="flex items-center gap-3">
                                                                         <div className="text-right">
                                                                             <div className="font-bold text-sm">₹{Math.round(item.amount)}</div>
@@ -602,6 +637,37 @@
                             )}
                         </div>
                     </div>
+                    
+                    {/* HIDDEN RECEIPT GENERATOR */}
+                    <div id="receipt-capture" className="absolute top-0 left-[-9999px] bg-white p-6 w-[400px]">
+                        {result && (
+                            <div className="border border-slate-300 p-4 rounded-xl">
+                                <div className="text-center mb-4">
+                                    <h2 className="text-xl font-bold text-slate-800">Bill - {result.billMonthName}</h2>
+                                    <div className="text-sm text-slate-500">Monthly Utility Breakdown</div>
+                                </div>
+                                <div className="space-y-2 text-sm border-b pb-3 mb-3">
+                                    {result.water > 0 && <div className="flex justify-between"><span>Water</span><span className="font-bold">₹{result.water}</span></div>}
+                                    {result.motor > 0 && <div className="flex justify-between"><span>Motor</span><span className="font-bold">₹{result.motor}</span></div>}
+                                    {result.tanker > 0 && <div className="flex justify-between"><span>Tanker</span><span className="font-bold">₹{result.tanker}</span></div>}
+                                </div>
+                                <div className="flex justify-between text-lg font-bold text-blue-600 mb-4">
+                                    <span>Total Payable</span>
+                                    <span>₹{result.totalBill}</span>
+                                </div>
+                                <div className="space-y-2">
+                                    {result.breakdown.map((item, i) => (
+                                        <div key={i} className="flex justify-between text-sm py-1 border-b border-dashed border-slate-200">
+                                            <span className="font-semibold text-slate-700">{item.unit ? item.unit : ''} {item.name || 'Unknown'}</span>
+                                            <span className="font-bold">₹{Math.round(item.amount)}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="mt-6 text-center text-[10px] text-slate-400">Generated by Bill Splitter App</div>
+                            </div>
+                        )}
+                    </div>
+                    
                     <div className="text-center mt-8 opacity-60"><p className="text-sm font-medium text-slate-500">Developed by Babu Mani (@ChartWizMani)</p></div>
                 </div>
             );
