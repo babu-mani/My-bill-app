@@ -1,5 +1,5 @@
 <!-- 
-    Bill Splitter App v4.0 Image Generator + Text)
+    Bill Splitter App v5.0 (Copy Image )
     Developed by Babu Mani (@ChartWizMani)
 -->
 <!DOCTYPE html>
@@ -38,8 +38,21 @@
         .status-btn:active { transform: scale(0.9); }
         .modal-overlay { background-color: rgba(0,0,0,0.5); position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; }
         
-        /* Receipt Styles (Hidden until generation) */
-        #receipt-capture { position: absolute; left: -9999px; top: 0; width: 400px; background: white; padding: 20px; border-radius: 10px; }
+        /* High Quality Receipt Styles */
+        #receipt-capture { 
+            position: absolute; 
+            left: -9999px; 
+            top: 0; 
+            width: 480px; /* Wider for better detail */
+            background: #ffffff; 
+            padding: 30px; 
+            border-radius: 0;
+            font-family: 'Segoe UI', sans-serif;
+            color: #1e293b;
+        }
+        .receipt-header { text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 15px; }
+        .receipt-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0; border-bottom: 1px dashed #cbd5e1; }
+        .receipt-unit { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; border: 1px solid #cbd5e1; font-weight: bold; font-size: 0.8rem; margin-right: 8px; display: inline-block; }
     </style>
 </head>
 <body>
@@ -67,7 +80,8 @@
             CloudOff: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="2" y1="2" x2="22" y2="22"/><path d="M5.034 5.034A2 2 0 0 0 5 6v11a2 2 0 0 0 2 2h12a2 2 0 0 0 1.926-.854"/><path d="M19 11V6a2 2 0 0 0-2-2H9.83"/></svg>,
             Chart: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg>,
             List: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>,
-            Nuke: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/><path d="M12 12v6"/><path d="M12 6h.01"/></svg>
+            Nuke: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/><path d="M12 12v6"/><path d="M12 6h.01"/></svg>,
+            CopyImage: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><path d="M16 4h2a2 2 0 0 1 2 2v4"/><path d="M21 14H11"/><path d="m15 10-4 4 4 4"/></svg>
         };
 
         const DEFAULT_MEMBERS = [
@@ -80,7 +94,6 @@
         ];
 
         function App() {
-            // State
             const [activeTab, setActiveTab] = useState('calc'); 
             const [historyView, setHistoryView] = useState('list');
             const [waterBill, setWaterBill] = useState('');
@@ -102,13 +115,14 @@
             const [cloudConfig, setCloudConfig] = useState({ apiKey: '', projectId: '' });
             const [isCloudActive, setIsCloudActive] = useState(false);
             const [syncStatus, setSyncStatus] = useState('');
+            const [isLoading, setIsLoading] = useState(false);
 
             const ignoreRemoteUpdate = useRef(false);
 
             // 1. Initial Load
             useEffect(() => {
                 const loadSafe = (key) => { try { return JSON.parse(localStorage.getItem(key)) } catch (e) { return null; }};
-                const savedData = loadSafe('billSplitterData_v20'); 
+                const savedData = loadSafe('billSplitterData_v21'); 
                 const savedCloud = loadSafe('billSplitterCloudConfig');
                 
                 if (savedData) {
@@ -133,7 +147,7 @@
             // 2. Data Persistence
             useEffect(() => {
                 const dataToSave = { members, houseRate, shopRate, waterBill, motorBill, tankerBill, billMonth };
-                localStorage.setItem('billSplitterData_v20', JSON.stringify(dataToSave));
+                localStorage.setItem('billSplitterData_v21', JSON.stringify(dataToSave));
                 localStorage.setItem('billSplitterHistory', JSON.stringify(history));
 
                 if (isCloudActive && window.firebaseApp && !ignoreRemoteUpdate.current) {
@@ -162,20 +176,29 @@
 
                         const db = firebase.firestore();
                         setIsCloudActive(true);
+                        setIsLoading(true);
                         
                         db.collection("bills").doc("current_data").onSnapshot((doc) => { if (doc.exists) { /* Sync logic */ } });
+                        
                         db.collection("bills").doc("history").onSnapshot((doc) => { 
+                            setIsLoading(false);
                             if (ignoreRemoteUpdate.current) return;
-                            if(doc.exists()) {
+                            
+                            if(doc.exists) {
                                 const data = doc.data();
                                 if(data.records) setHistory(data.records); 
                             } else {
                                 setHistory([]);
                             }
+                        }, (error) => {
+                            setIsLoading(false);
+                            console.error("Cloud Read Error:", error);
+                            alert("Error reading from Cloud. Check API Key permissions.");
                         });
                     } catch (e) {
                         alert("Error connecting to Cloud. Check keys.");
                         setIsCloudActive(false);
+                        setIsLoading(false);
                     }
                 } else {
                     setIsCloudActive(true);
@@ -248,7 +271,7 @@
                         breakdown[firstFamilyIndex].amount += difference;
                     }
                 }
-                
+
                 const [year, month] = billMonth.split('-');
                 const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
                 setResult({ totalBill, perPerson, breakdown, water, motor, tanker, date: new Date().toLocaleString(), billMonthName: monthName, billMonthKey: billMonth });
@@ -314,18 +337,38 @@
                 const link = document.createElement("a"); link.href = encodeURI("data:text/csv;charset=utf-8,"+csv); link.download = "history.csv"; link.click();
             };
             
-            // --- NEW: GENERATE RECEIPT IMAGE ---
+            // --- COPY IMAGE FUNCTION ---
+            const copyImage = () => {
+                const captureDiv = document.getElementById('receipt-capture');
+                captureDiv.style.left = "0"; // Move into view (temporarily)
+                
+                // Use scale 2 for high quality
+                html2canvas(captureDiv, { scale: 2, backgroundColor: "#ffffff" }).then(canvas => {
+                    captureDiv.style.left = "-9999px"; // Hide again
+                    canvas.toBlob(blob => {
+                        try {
+                            const item = new ClipboardItem({ 'image/png': blob });
+                            navigator.clipboard.write([item]).then(() => {
+                                alert("Receipt Image Copied to Clipboard! \nNow Paste it in WhatsApp.");
+                            }).catch(err => {
+                                console.error(err);
+                                alert("Copy failed. Try 'Download Image' instead.");
+                            });
+                        } catch (e) {
+                            alert("Your browser doesn't support Image Copy. Please use 'Download Image'.");
+                        }
+                    });
+                });
+            };
+
             const downloadImage = () => {
                 const captureDiv = document.getElementById('receipt-capture');
-                // Temporarily show the div
                 captureDiv.style.left = "0";
-                
-                html2canvas(captureDiv).then(canvas => {
+                html2canvas(captureDiv, { scale: 2 }).then(canvas => {
                     const link = document.createElement('a');
                     link.download = `Bill-${result.billMonthName}.jpg`;
                     link.href = canvas.toDataURL('image/jpeg', 0.9);
                     link.click();
-                    // Hide again
                     captureDiv.style.left = "-9999px";
                 });
             };
@@ -337,30 +380,24 @@
                 openWhatsApp(msg);
             };
             
-            // --- UPDATED: EXACT TEXT FORMAT COPY ---
             const shareFullBill = () => {
                 let text = ``;
                 if(result.water > 0) text += `Water Bill: ₹${result.water}\n`;
                 if(result.motor > 0) text += `Motor Bill: ₹${result.motor}\n`;
                 if(result.tanker > 0) text += `Tanker Bill: ₹${result.tanker}\n`;
-                
                 text += `\n*Bill - ${result.billMonthName}*\n`;
                 text += `Total: ₹${result.totalBill}\n`;
                 if(result.perPerson > 0) text += `Rate: ₹${result.perPerson.toFixed(2)}/head\n\n`;
-                
                 result.breakdown.forEach(i => {
-                    // Format: "101 Name : ₹Amount"
                     const unitPart = i.unit ? `${i.unit} ` : '';
                     const namePart = i.name || 'Unknown';
-                    text += `${unitPart}${namePart} : ₹${Math.round(i.amount)}\n`;
+                    text += `${unitPart}${namePart}: ₹${Math.round(i.amount)}\n`;
                 });
-                
-                const t = document.createElement("textarea"); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); alert('Copied to Clipboard!');
+                const t = document.createElement("textarea"); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); alert('Copied!');
             };
             
             const reset = () => { if(confirm("Reset all?")) { setMembers(DEFAULT_MEMBERS); setWaterBill(''); setMotorBill(''); setTankerBill(''); setResult(null); }};
 
-            // Stats Logic (Same as before)
             const getUniqueYears = () => {
                 const years = new Set([new Date().getFullYear().toString()]); 
                 years.add((new Date().getFullYear() + 1).toString());
@@ -371,6 +408,7 @@
                 });
                 return Array.from(years).sort().reverse(); 
             };
+
             const calculateStats = () => {
                 const stats = { water: 0, motor: 0, tanker: 0, grand: 0, paidTotal: 0, members: {} };
                 history.forEach(h => {
@@ -401,7 +439,7 @@
                     <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
                         {/* HEADER */}
                         <div className="bg-blue-600 p-6 text-white flex justify-between items-center">
-                            <div><h1 className="text-2xl font-bold">Bill Splitter</h1><p className="text-blue-100 opacity-90 text-sm">Cloud Accountant</p></div>
+                            <div><h1 className="text-2xl font-bold">Bill Splitter</h1><p className="text-blue-100 opacity-90 text-sm">Cloud Edition {isCloudActive && '⚡'}</p></div>
                             <div className="flex gap-2">
                                 <button onClick={()=>setShowCloudSetup(true)} className={`p-2 rounded-full transition ${isCloudActive ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-500 hover:bg-blue-400'}`} title="Cloud Setup">{isCloudActive ? <Icons.Cloud /> : <Icons.CloudOff />}</button>
                                 <button onClick={reset} className="p-2 bg-blue-500 rounded-full hover:bg-blue-400" title="Reset"><Icons.Reset /></button>
@@ -526,8 +564,9 @@
                                                     ))}
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-3 mt-4">
-                                                    <button onClick={shareFullBill} className="py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md"><Icons.Copy /> Copy Text</button>
-                                                    <button onClick={downloadImage} className="py-3 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md"><Icons.Image /> Get Image</button>
+                                                    <button onClick={shareFullBill} className="py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md text-xs"><Icons.Copy /> Copy Text</button>
+                                                    <button onClick={copyImage} className="py-3 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md text-xs"><Icons.CopyImage /> Copy Image</button>
+                                                    <button onClick={downloadImage} className="py-3 bg-slate-500 hover:bg-slate-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md text-xs col-span-2"><Icons.Image /> Save Image</button>
                                                 </div>
                                             </div>
                                         </div>
@@ -548,8 +587,10 @@
                                             <button onClick={downloadExcel} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200" title="Download Excel"><Icons.Download /></button>
                                         </div>
                                     </div>
+                                    
+                                    {isLoading && <div className="text-center text-blue-500 py-4 font-bold">Loading Data from Cloud...</div>}
 
-                                    {history.length === 0 ? <p className="text-center text-slate-400 py-10">No history saved yet.</p> : (
+                                    {!isLoading && history.length === 0 ? <p className="text-center text-slate-400 py-10">No history saved yet.</p> : !isLoading && (
                                         <>
                                             {/* STATS VIEW */}
                                             {historyView === 'stats' && (
@@ -612,7 +653,7 @@
                                                             <div className="text-xs text-slate-500 mb-3 bg-white p-2 rounded border">Water: {h.water} | Motor: {h.motor} | Tanker: {h.tanker}</div>
                                                             <div className="divide-y divide-slate-200">{h.breakdown.map((item, i) => (
                                                                 <div key={i} className="py-2 flex justify-between items-center">
-                                                                    <div><div className="font-bold text-sm text-slate-700">{item.unit} {item.name}</div></div>
+                                                                    <div><div className="font-bold text-sm text-slate-700">{item.unit} {item.name}</div><div className="text-[10px] text-slate-400">{item.detail}</div></div>
                                                                     <div className="flex items-center gap-3">
                                                                         <div className="text-right">
                                                                             <div className="font-bold text-sm">₹{Math.round(item.amount)}</div>
@@ -657,13 +698,18 @@
                                 </div>
                                 <div className="space-y-2">
                                     {result.breakdown.map((item, i) => (
-                                        <div key={i} className="flex justify-between text-sm py-1 border-b border-dashed border-slate-200">
-                                            <span className="font-semibold text-slate-700">{item.unit ? item.unit : ''} {item.name || 'Unknown'}</span>
-                                            <span className="font-bold">₹{Math.round(item.amount)}</span>
+                                        <div key={i} className="flex flex-col py-1 border-b border-dashed border-slate-200">
+                                            <div className="flex justify-between">
+                                                <span className="font-semibold text-slate-700">
+                                                    {item.unit ? <span className="bg-slate-100 border border-slate-300 px-1 rounded mr-1 text-xs">{item.unit}</span> : ''} {item.name || 'Unknown'}
+                                                </span>
+                                                <span className="font-bold">₹{Math.round(item.amount)}</span>
+                                            </div>
+                                            <div className="text-xs text-slate-400 pl-1">{item.detail}</div>
                                         </div>
                                     ))}
                                 </div>
-                                <div className="mt-6 text-center text-[10px] text-slate-400">Generated by Bill Splitter App</div>
+                                <div className="mt-6 text-center text-[10px] text-slate-400">Developed by Babu Mani (@ChartWizMani)</div>
                             </div>
                         )}
                     </div>
