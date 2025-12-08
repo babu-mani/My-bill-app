@@ -1,5 +1,5 @@
 <!-- 
-    Bill Splitter App v6.0(Copy Image + fixing icon)
+    Bill Splitter App v7.1 (Fix: Receipt Layout & Spacing)
     Developed by Babu Mani (@ChartWizMani)
 -->
 <!DOCTYPE html>
@@ -52,7 +52,8 @@
         }
         .receipt-header { text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 15px; }
         .receipt-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0; border-bottom: 1px dashed #cbd5e1; }
-        .receipt-unit { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; border: 1px solid #cbd5e1; font-weight: bold; font-size: 0.8rem; margin-right: 8px; display: inline-block; }
+        /* FIXED: Renamed class to match JS usage */
+        .unit-badge { background: #f1f5f9; padding: 2px 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: bold; font-size: 0.85rem; margin-right: 10px; display: inline-block; color: #475569; }
     </style>
 </head>
 <body>
@@ -381,6 +382,7 @@
                 openWhatsApp(msg);
             };
             
+            // --- UPDATED: EXACT TEXT FORMAT COPY ---
             const shareFullBill = () => {
                 let text = ``;
                 if(result.water > 0) text += `Water Bill: ₹${result.water}\n`;
