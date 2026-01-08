@@ -94,6 +94,27 @@
             { id: 6, unit: 'S-1', name: 'Shop 1', type: 'shop', count: 1 },
         ];
 
+        // --- CUSTOM SORT FUNCTION ---
+        const sortMembersList = (list) => {
+            return [...list].sort((a, b) => {
+                const u1 = (a.unit || '').toString().toLowerCase().trim();
+                const u2 = (b.unit || '').toString().toLowerCase().trim();
+
+                const getRank = (str) => {
+                    if (str.startsWith('g')) return 1; // Ground Floor Priority
+                    if (/^\d/.test(str)) return 2;     // Numeric (101, 102...)
+                    if (str.startsWith('s') || str.includes('shop')) return 3; // Shops Last
+                    return 4; // Others
+                };
+
+                const r1 = getRank(u1);
+                const r2 = getRank(u2);
+
+                if (r1 !== r2) return r1 - r2;
+                return u1.localeCompare(u2, undefined, { numeric: true, sensitivity: 'base' });
+            });
+        };
+
         function App() {
             // State
             const [activeTab, setActiveTab] = useState('calc'); 
@@ -141,8 +162,8 @@
                     setCloudConfig(savedCloud);
                     if(savedCloud.apiKey && savedCloud.projectId) initializeFirebase(savedCloud);
                 } else {
-                     const savedHistory = loadSafe('billSplitterHistory');
-                     if(savedHistory) setHistory(savedHistory);
+                      const savedHistory = loadSafe('billSplitterHistory');
+                      if(savedHistory) setHistory(savedHistory);
                 }
             }, []);
 
@@ -273,7 +294,13 @@
                 const hRate = parseFloat(houseRate) || 0;
                 const sRate = parseFloat(shopRate) || 0;
 
-                members.forEach(m => {
+                // 1. AUTOMATIC ORDERING: Sort members properly before calculation
+                const sortedMembers = sortMembersList(members);
+                // Update the state so the input list also reflects the proper order
+                setMembers(sortedMembers);
+
+                // Use sortedMembers for calculation
+                sortedMembers.forEach(m => {
                     if (m.type === 'house') fixedCollection += hRate;
                     else if (m.type === 'shop') fixedCollection += sRate;
                     else if (m.type !== 'vacant') totalVariableMembers += parseInt(m.count) || 0;
@@ -289,7 +316,9 @@
                 }
 
                 let calculatedTotal = 0;
-                const breakdown = members.map(m => {
+                
+                // 2. GENERATE BREAKDOWN & REMOVE VACANT (Filter)
+                const breakdown = sortedMembers.map(m => {
                     let amount = 0, detail = '';
                     if (m.type === 'house') { amount = Math.round(finalHRate); detail = 'Fixed House'; }
                     else if (m.type === 'shop') { amount = Math.round(finalSRate); detail = 'Fixed Shop'; }
@@ -300,7 +329,7 @@
                     }
                     calculatedTotal += amount;
                     return { ...m, amount, detail, paidAmount: 0 }; 
-                });
+                }).filter(m => m.type !== 'vacant'); // <--- FIX: Exclude Vacant from Bill Result
 
                 const difference = totalBill - calculatedTotal; 
                 if (difference !== 0 && totalVariableMembers > 0) {
