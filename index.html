@@ -141,6 +141,7 @@
             const [isLoading, setIsLoading] = useState(false);
 
             const ignoreRemoteUpdate = useRef(false);
+            const hasLoadedCloudCurrentData = useRef(false);
 
             // 1. Initial Load
             useEffect(() => {
@@ -173,7 +174,7 @@
                 localStorage.setItem('billSplitterData_v21', JSON.stringify(dataToSave));
                 localStorage.setItem('billSplitterHistory', JSON.stringify(history));
 
-                if (isCloudActive && window.firebaseApp && !ignoreRemoteUpdate.current) {
+                if (isCloudActive && window.firebaseApp && hasLoadedCloudCurrentData.current && !ignoreRemoteUpdate.current) {
                     const saveDataToCloud = async () => {
                         setSyncStatus('Syncing...');
                         try {
@@ -201,7 +202,20 @@
                         setIsCloudActive(true);
                         setIsLoading(true);
                         
-                        db.collection("bills").doc("current_data").onSnapshot((doc) => { if (doc.exists) { /* Sync logic */ } });
+                        hasLoadedCloudCurrentData.current = false;
+                        db.collection("bills").doc("current_data").onSnapshot((doc) => {
+                            if (ignoreRemoteUpdate.current) return;
+                            if (doc.exists) {
+                                const data = doc.data();
+                                if (Array.isArray(data.members) && data.members.length > 0) setMembers(data.members);
+                                if (data.houseRate !== undefined) setHouseRate(data.houseRate);
+                                if (data.shopRate !== undefined) setShopRate(data.shopRate);
+                            }
+                            hasLoadedCloudCurrentData.current = true;
+                        }, (error) => {
+                            hasLoadedCloudCurrentData.current = true;
+                            console.error("Cloud current_data read error:", error);
+                        });
                         
                         db.collection("bills").doc("history").onSnapshot((doc) => { 
                             setIsLoading(false);
