@@ -116,6 +116,22 @@
         };
 
         const normalizeUnit = (value) => (value || '').toString().trim().toUpperCase();
+        const defaultNameByUnit = new Map(
+            DEFAULT_MEMBERS.map((m) => [normalizeUnit(m.unit), (m.name || '').toString().trim().toLowerCase()])
+        );
+
+        const membersEqual = (a, b) => {
+            if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+            for (let i = 0; i < a.length; i++) {
+                const x = a[i] || {};
+                const y = b[i] || {};
+                if (normalizeUnit(x.unit) !== normalizeUnit(y.unit)) return false;
+                if ((x.name || '').toString().trim() !== (y.name || '').toString().trim()) return false;
+                if ((x.type || 'family') !== (y.type || 'family')) return false;
+                if ((Number(x.count) || 0) !== (Number(y.count) || 0)) return false;
+            }
+            return true;
+        };
 
         const looksLikeDefaultMembers = (list) => {
             if (!Array.isArray(list) || list.length !== DEFAULT_MEMBERS.length) return false;
@@ -123,6 +139,13 @@
             const left = list.map(toKey).sort();
             const right = DEFAULT_MEMBERS.map(toKey).sort();
             return left.every((v, i) => v === right[i]);
+        };
+
+        const isPlaceholderName = (unit, name) => {
+            const clean = (name || '').toString().trim().toLowerCase();
+            if (!clean) return true;
+            const defaultName = defaultNameByUnit.get(normalizeUnit(unit));
+            return !!defaultName && clean === defaultName;
         };
 
         const mergeNamesFromHistory = (existingMembers, records, currentBillMonth) => {
@@ -138,34 +161,51 @@
                     .filter((r) => typeof r.billMonthKey === 'string' && r.billMonthKey < currentBillMonth)
                     .sort((a, b) => b.billMonthKey.localeCompare(a.billMonthKey))
                 : [];
-            const latestRecord = previousMonthRecords.length > 0 ? previousMonthRecords[0] : validRecords[0];
+            const orderedRecords = previousMonthRecords.length > 0 ? previousMonthRecords : validRecords;
+            const sourceRecord = orderedRecords.find((record) =>
+                Array.isArray(record.breakdown) && record.breakdown.some((item) => !isPlaceholderName(item.unit, item.name))
+            ) || orderedRecords[0];
+            const next = existingMembers.map((m) => ({ ...m }));
+            let changed = false;
 
-            const byUnit = new Map();
-            latestRecord.breakdown.forEach((item) => {
-                const unitKey = normalizeUnit(item.unit);
-                const name = (item.name || '').toString().trim();
-                if (unitKey && name) byUnit.set(unitKey, { name, type: item.type, count: item.count });
-            });
+            sourceRecord.breakdown.forEach((item, index) => {
+                const unit = (item.unit || '').toString();
+                const unitKey = normalizeUnit(unit);
+                if (!unitKey) return;
 
-            if (byUnit.size === 0) return existingMembers;
+                const historyName = (item.name || '').toString().trim();
+                const existingIdx = next.findIndex((m) => normalizeUnit(m.unit) === unitKey);
 
-            return existingMembers.map((m, index) => {
-                const unitKey = normalizeUnit(m.unit);
-                const match = unitKey ? byUnit.get(unitKey) : null;
-                if (match) {
-                    return {
-                        ...m,
-                        name: match.name || m.name,
-                        type: match.type || m.type,
-                        count: Number(match.count) > 0 ? Number(match.count) : m.count
-                    };
+                if (existingIdx >= 0) {
+                    const current = next[existingIdx];
+                    if (historyName && isPlaceholderName(current.unit, current.name)) {
+                        const updated = {
+                            ...current,
+                            name: historyName,
+                            type: item.type || current.type,
+                            count: Number(item.count) > 0 ? Number(item.count) : current.count
+                        };
+                        if (!membersEqual([current], [updated])) {
+                            next[existingIdx] = updated;
+                            changed = true;
+                        }
+                    }
+                    return;
                 }
 
-                // Unit-less fallback: map by row position
-                const rowMatch = latestRecord.breakdown[index];
-                if (!unitKey && rowMatch && rowMatch.name) return { ...m, name: rowMatch.name };
-                return m;
+                next.push({
+                    id: item.id !== undefined ? item.id : `hist-${unitKey}-${index}`,
+                    unit,
+                    name: historyName,
+                    type: item.type || 'family',
+                    count: Number(item.count) > 0 ? Number(item.count) : 1
+                });
+                changed = true;
             });
+
+            if (!changed) return existingMembers;
+            const sorted = sortMembersList(next);
+            return membersEqual(existingMembers, sorted) ? existingMembers : sorted;
         };
 
         function App() {
@@ -197,6 +237,7 @@
             const hasLoadedCloudCurrentData = useRef(false);
             const hasLoadedMembersFromCurrentData = useRef(false);
             const currentDataMembersAreDefault = useRef(false);
+            const cloudHistoryRecordsRef = useRef([]);
 
             // 1. Initial Load
             useEffect(() => {
@@ -260,6 +301,7 @@
                         hasLoadedCloudCurrentData.current = false;
                         hasLoadedMembersFromCurrentData.current = false;
                         currentDataMembersAreDefault.current = false;
+                        cloudHistoryRecordsRef.current = [];
                         db.collection("bills").doc("current_data").onSnapshot((doc) => {
                             if (ignoreRemoteUpdate.current) return;
                             if (doc.exists) {
@@ -268,12 +310,15 @@
                                     ? data.members
                                     : (data.members && typeof data.members === 'object' ? Object.values(data.members) : null);
                                 if (Array.isArray(cloudMembers) && cloudMembers.length > 0) {
-                                    setMembers(cloudMembers);
+                                    setMembers((prev) => membersEqual(prev, cloudMembers) ? prev : cloudMembers);
                                     hasLoadedMembersFromCurrentData.current = true;
                                     currentDataMembersAreDefault.current = looksLikeDefaultMembers(cloudMembers);
                                 }
-                                if (data.houseRate !== undefined) setHouseRate(data.houseRate);
-                                if (data.shopRate !== undefined) setShopRate(data.shopRate);
+                                if (data.houseRate !== undefined) setHouseRate((prev) => prev === data.houseRate ? prev : data.houseRate);
+                                if (data.shopRate !== undefined) setShopRate((prev) => prev === data.shopRate ? prev : data.shopRate);
+                                if (cloudHistoryRecordsRef.current.length > 0) {
+                                    setMembers((prev) => mergeNamesFromHistory(prev, cloudHistoryRecordsRef.current, billMonth));
+                                }
                             }
                             hasLoadedCloudCurrentData.current = true;
                         }, (error) => {
@@ -288,11 +333,13 @@
                             if(doc.exists) {
                                 const data = doc.data();
                                 const cloudRecords = Array.isArray(data.records) ? data.records : [];
+                                cloudHistoryRecordsRef.current = cloudRecords;
                                 setHistory(cloudRecords);
-                                if (cloudRecords.length > 0 && (!hasLoadedMembersFromCurrentData.current || currentDataMembersAreDefault.current)) {
+                                if (cloudRecords.length > 0) {
                                     setMembers((prev) => mergeNamesFromHistory(prev, cloudRecords, billMonth));
                                 }
                             } else {
+                                cloudHistoryRecordsRef.current = [];
                                 setHistory([]);
                             }
                         }, (error) => {
