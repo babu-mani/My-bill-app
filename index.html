@@ -9,10 +9,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Bill Splitter - Cloud</title>
     
-    <!-- Google Fonts: DM Sans -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700;9..40,800&display=swap" rel="stylesheet">
-
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
     <!-- React Framework -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
@@ -27,13 +26,7 @@
 
     <!-- Styles -->
     <style>
-        body {
-            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-            -webkit-tap-highlight-color: transparent;
-            background: linear-gradient(135deg, #eef2ff 0%, #f0f9ff 100%);
-            min-height: 100vh;
-            user-select: none;
-        }
+        body { -webkit-tap-highlight-color: transparent; background-color: #f8fafc; user-select: none; }
         input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         .select-wrapper { position: relative; }
         .select-wrapper::after { content: '▼'; font-size: 0.7rem; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); pointer-events: none; color: #64748b; }
@@ -61,21 +54,6 @@
         .receipt-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0; border-bottom: 1px dashed #cbd5e1; }
         /* FIXED: Renamed class to match JS usage */
         .unit-badge { background: #f1f5f9; padding: 2px 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: bold; font-size: 0.85rem; margin-right: 10px; display: inline-block; color: #475569; }
-
-        /* Design improvements */
-        * { box-sizing: border-box; }
-        .app-container { font-family: 'DM Sans', sans-serif; }
-        input, select, button, textarea { font-family: 'DM Sans', sans-serif; }
-        .bg-gradient-header { background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%) !important; }
-        .cloud-active-pill { background: rgba(16,185,129,0.2); border: 1px solid rgba(16,185,129,0.4); color: #6ee7b7; font-size: 0.62rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; letter-spacing: 0.05em; display: inline-block; }
-        .member-border-family { border-left: 4px solid #3b82f6 !important; }
-        .member-border-house  { border-left: 4px solid #8b5cf6 !important; }
-        .member-border-shop   { border-left: 4px solid #f59e0b !important; }
-        .member-border-vacant { border-left: 4px solid #94a3b8 !important; opacity: 0.65; }
-        .progress-bar-wrap { height: 4px; background: #f1f5f9; border-radius: 4px; overflow: hidden; margin-top: 6px; }
-        .progress-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
-        @keyframes syncPulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-        .sync-pulse { animation: syncPulse 1.2s infinite; }
     </style>
 </head>
 <body>
@@ -171,11 +149,13 @@
                 const savedCloud = loadSafe('billSplitterCloudConfig');
                 
                 if (savedData) {
-                    // Restore members and rates only
-                    // Bill inputs (waterBill, motorBill, tankerBill, billMonth) always reset to current month
                     if(savedData.members) setMembers(savedData.members);
                     if(savedData.houseRate) setHouseRate(savedData.houseRate);
                     if(savedData.shopRate) setShopRate(savedData.shopRate);
+                    if(savedData.waterBill) setWaterBill(savedData.waterBill);
+                    if(savedData.motorBill) setMotorBill(savedData.motorBill);
+                    if(savedData.tankerBill) setTankerBill(savedData.tankerBill);
+                    if(savedData.billMonth) setBillMonth(savedData.billMonth);
                 }
                 
                 if (savedCloud) {
@@ -221,17 +201,7 @@
                         setIsCloudActive(true);
                         setIsLoading(true);
                         
-                        db.collection("bills").doc("current_data").onSnapshot((doc) => {
-                            if (ignoreRemoteUpdate.current) return;
-                            if (doc.exists) {
-                                const data = doc.data();
-                                // Load member names and rates from cloud (fixes "old names" bug)
-                                if (data.members && data.members.length > 0) setMembers(data.members);
-                                if (data.houseRate !== undefined) setHouseRate(data.houseRate);
-                                if (data.shopRate !== undefined) setShopRate(data.shopRate);
-                                // NOTE: intentionally NOT restoring billMonth/bills - those reset each session
-                            }
-                        });
+                        db.collection("bills").doc("current_data").onSnapshot((doc) => { if (doc.exists) { /* Sync logic */ } });
                         
                         db.collection("bills").doc("history").onSnapshot((doc) => { 
                             setIsLoading(false);
@@ -501,22 +471,11 @@
             const availableYears = getUniqueYears();
 
             return (
-                <div className="min-h-screen p-3 md:p-6 max-w-2xl mx-auto text-slate-900 pb-20 app-container">
+                <div className="min-h-screen font-sans p-3 md:p-6 max-w-2xl mx-auto text-slate-900 pb-20">
                     <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
                         {/* HEADER */}
-                        <div className="bg-gradient-header p-6 text-white flex justify-between items-center" style={{borderRadius: "0"}}>
-                            <div>
-                                <div className="flex items-center gap-2">
-                                    <h1 className="text-2xl font-bold">Bill Splitter</h1>
-                                    {isCloudActive && <span className="cloud-active-pill">CLOUD ⚡</span>}
-                                </div>
-                                <p className="text-blue-100 opacity-90 text-sm mt-1 flex items-center gap-2">
-                                    Utility Bill Manager
-                                    {syncStatus === 'Syncing...' && <span style={{color:'#93c5fd', fontSize:'0.75rem'}} className="sync-pulse">⟳ Syncing</span>}
-                                    {syncStatus === 'Synced ✅' && <span style={{color:'#4ade80', fontSize:'0.75rem'}}>✓ Synced</span>}
-                                    {syncStatus === 'Sync Failed ❌' && <span style={{color:'#f87171', fontSize:'0.75rem'}}>✗ Failed</span>}
-                                </p>
-                            </div>
+                        <div className="bg-blue-600 p-6 text-white flex justify-between items-center">
+                            <div><h1 className="text-2xl font-bold">Bill Splitter</h1><p className="text-blue-100 opacity-90 text-sm">Cloud Edition {isCloudActive && '⚡'}</p></div>
                             <div className="flex gap-2">
                                 <button onClick={()=>setShowCloudSetup(true)} className={`p-2 rounded-full transition ${isCloudActive ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-500 hover:bg-blue-400'}`} title="Cloud Setup">{isCloudActive ? <Icons.Cloud /> : <Icons.CloudOff />}</button>
                                 <button onClick={reset} className="p-2 bg-blue-500 rounded-full hover:bg-blue-400" title="Reset"><Icons.Reset /></button>
@@ -569,7 +528,7 @@
                         </div>
 
                         <div className="p-5 space-y-6">
-                            
+                            {syncStatus && <div className="text-xs text-center text-slate-400 italic">{syncStatus}</div>}
                             
                             {activeTab === 'calc' && (
                                 <>
@@ -599,7 +558,7 @@
                                         )}
                                         <div className="space-y-3">
                                             {members.map(m => (
-                                                <div key={m.id} className={`flex flex-col gap-2 p-3 bg-white rounded-lg border border-slate-200 shadow-sm member-border-${m.type}`}>
+                                                <div key={m.id} className="flex flex-col gap-2 p-3 bg-white rounded-lg border border-slate-200 shadow-sm">
                                                     <div className="flex gap-2">
                                                         <div className="w-1/3"><input type="text" value={m.unit} onChange={e=>handleUpdateMember(m.id,'unit',e.target.value)} className="w-full font-bold p-1 bg-slate-50 rounded border text-center uppercase" placeholder="Unit" /></div>
                                                         <div className="flex-grow flex gap-2"><input type="text" value={m.name} onChange={e=>handleUpdateMember(m.id,'name',e.target.value)} className="w-full font-semibold p-1 border-b focus:border-blue-500 outline-none" placeholder="Name" /><button onClick={()=>handleRemoveMember(m.id)} className="text-slate-300 hover:text-red-500"><Icons.Trash /></button></div>
