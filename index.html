@@ -1,5 +1,5 @@
 <!-- 
-    Bill Splitter App v8.0 (Design Refresh + Cloud Sync Fix)
+    Bill Splitter App v7.1 (Fix: Receipt Layout & Spacing)
     Developed by Babu Mani (@ChartWizMani)
 -->
 <!DOCTYPE html>
@@ -9,13 +9,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Bill Splitter - Cloud</title>
     
-    <!-- Google Fonts -->
+    <!-- Google Fonts: DM Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700;9..40,800&display=swap" rel="stylesheet">
 
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
     <!-- React Framework -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
@@ -25,212 +22,60 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
-    <!-- HTML2CANVAS -->
+    <!-- HTML2CANVAS (For Image Generation) -->
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 
+    <!-- Styles -->
     <style>
-        :root {
-            --primary: #1d4ed8;
-            --primary-dark: #1e3a8a;
-            --primary-light: #dbeafe;
-            --surface: #ffffff;
-            --bg: #f0f4ff;
-            --border: #e2e8f0;
-            --text: #0f172a;
-            --text-muted: #64748b;
-            --success: #059669;
-            --warning: #d97706;
-            --danger: #dc2626;
-            --radius: 16px;
-            --shadow: 0 4px 24px rgba(29,78,216,0.08);
-            --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
-        }
-
-        * { box-sizing: border-box; }
-
         body {
-            font-family: 'DM Sans', sans-serif;
-            background: var(--bg);
-            background-image: 
-                radial-gradient(ellipse at 10% 20%, rgba(147,197,253,0.25) 0%, transparent 50%),
-                radial-gradient(ellipse at 90% 80%, rgba(196,181,253,0.15) 0%, transparent 50%);
-            min-height: 100vh;
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
             -webkit-tap-highlight-color: transparent;
+            background: linear-gradient(135deg, #eef2ff 0%, #f0f9ff 100%);
+            min-height: 100vh;
             user-select: none;
         }
-
-        input[type="number"]::-webkit-inner-spin-button,
-        input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-
-        /* Tabs */
-        .tab-active { 
-            color: var(--primary); 
-            font-weight: 700;
-            position: relative;
-        }
-        .tab-active::after {
-            content: '';
-            position: absolute;
-            bottom: 0; left: 0; right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, var(--primary), #60a5fa);
-            border-radius: 3px 3px 0 0;
-        }
-        .tab-inactive { color: var(--text-muted); font-weight: 500; }
-
-        /* Cards */
-        .card {
-            background: var(--surface);
-            border-radius: var(--radius);
-            border: 1px solid var(--border);
-            box-shadow: var(--shadow-sm);
-        }
-
-        /* History */
-        .history-card { transition: all 0.2s ease; }
-        .history-expanded { 
-            border-color: #93c5fd !important; 
-            background: linear-gradient(135deg, #f0f9ff, #eff6ff) !important;
-            box-shadow: 0 4px 20px rgba(59,130,246,0.15) !important;
-        }
-
-        /* Buttons */
-        .status-btn { transition: all 0.2s; }
-        .status-btn:active { transform: scale(0.88); }
-        .btn-primary {
-            background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            color: white;
-            border-radius: 14px;
-            font-weight: 700;
-            font-size: 1.05rem;
-            padding: 14px;
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            transition: all 0.2s;
-            box-shadow: 0 4px 16px rgba(37,99,235,0.35);
-            letter-spacing: 0.03em;
-        }
-        .btn-primary:active { transform: scale(0.97); box-shadow: 0 2px 8px rgba(37,99,235,0.2); }
-
-        /* Select */
+        input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         .select-wrapper { position: relative; }
-        .select-wrapper::after { 
-            content: '▾'; 
-            font-size: 0.75rem; 
-            position: absolute; 
-            right: 10px; top: 50%; 
-            transform: translateY(-50%); 
-            pointer-events: none; 
-            color: var(--text-muted); 
-        }
-
-        /* Modal */
-        .modal-overlay { 
-            background: rgba(15,23,42,0.6); 
-            backdrop-filter: blur(4px);
-            position: fixed; 
-            inset: 0; 
-            z-index: 50; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            padding: 16px;
-        }
-
-        /* Member type colors */
-        .type-family { border-left: 3px solid #3b82f6; }
-        .type-house { border-left: 3px solid #8b5cf6; }
-        .type-shop { border-left: 3px solid #f59e0b; }
-        .type-vacant { border-left: 3px solid #94a3b8; opacity: 0.65; }
-
-        /* Input style */
-        .input-field {
-            width: 100%;
-            padding: 10px 14px;
-            border: 2px solid var(--border);
-            border-radius: 10px;
-            font-family: 'DM Sans', sans-serif;
-            font-size: 1rem;
-            font-weight: 600;
-            outline: none;
-            transition: border-color 0.2s;
-            background: white;
-        }
-        .input-field:focus { border-color: #93c5fd; }
-
-        /* Section headers */
-        .section-label {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.75rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: var(--text-muted);
-            margin-bottom: 12px;
-        }
-        .section-label .step-num {
-            background: var(--primary);
-            color: white;
-            width: 20px; height: 20px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.65rem;
-            font-weight: 800;
-            flex-shrink: 0;
-        }
-
-        /* Sync pulse */
-        @keyframes pulse-green {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        .syncing { animation: pulse-green 1.2s ease infinite; }
-
-        /* Receipt */
+        .select-wrapper::after { content: '▼'; font-size: 0.7rem; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); pointer-events: none; color: #64748b; }
+        .tab-active { border-bottom: 2px solid #2563eb; color: #2563eb; font-weight: bold; }
+        .tab-inactive { color: #64748b; }
+        .history-card { transition: all 0.2s; }
+        .history-expanded { border: 1px solid #3b82f6; background-color: #eff6ff; }
+        .status-btn { transition: all 0.2s; }
+        .status-btn:active { transform: scale(0.9); }
+        .modal-overlay { background-color: rgba(0,0,0,0.5); position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; }
+        
+        /* High Quality Receipt Styles */
         #receipt-capture { 
-            position: absolute; left: -9999px; top: 0;
-            width: 480px;
+            position: absolute; 
+            left: -9999px; 
+            top: 0; 
+            width: 480px; /* Wider for better detail */
             background: #ffffff; 
-            padding: 32px;
-            font-family: 'DM Sans', 'Segoe UI', sans-serif;
+            padding: 30px; 
+            border-radius: 0;
+            font-family: 'Segoe UI', sans-serif;
             color: #1e293b;
         }
-        .receipt-header { text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 16px; margin-bottom: 16px; }
+        .receipt-header { text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 15px; }
         .receipt-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0; border-bottom: 1px dashed #cbd5e1; }
-        .unit-badge { background: #f1f5f9; padding: 2px 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 700; font-size: 0.85rem; margin-right: 10px; display: inline-block; color: #475569; }
+        /* FIXED: Renamed class to match JS usage */
+        .unit-badge { background: #f1f5f9; padding: 2px 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: bold; font-size: 0.85rem; margin-right: 10px; display: inline-block; color: #475569; }
 
-        /* Fade in */
-        @keyframes fadeSlideUp {
-            from { opacity: 0; transform: translateY(12px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-in { animation: fadeSlideUp 0.3s ease forwards; }
-
-        /* Amount big */
-        .amount-display {
-            font-size: 2.25rem;
-            font-weight: 800;
-            line-height: 1;
-        }
-
-        /* Cloud badge */
-        .cloud-active-badge {
-            background: rgba(16,185,129,0.15);
-            border: 1px solid rgba(16,185,129,0.4);
-            color: #059669;
-            font-size: 0.7rem;
-            font-weight: 700;
-            padding: 2px 8px;
-            border-radius: 20px;
-            letter-spacing: 0.05em;
-        }
+        /* Design improvements */
+        * { box-sizing: border-box; }
+        .app-container { font-family: 'DM Sans', sans-serif; }
+        input, select, button, textarea { font-family: 'DM Sans', sans-serif; }
+        .bg-gradient-header { background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%) !important; }
+        .cloud-active-pill { background: rgba(16,185,129,0.2); border: 1px solid rgba(16,185,129,0.4); color: #6ee7b7; font-size: 0.62rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; letter-spacing: 0.05em; display: inline-block; }
+        .member-border-family { border-left: 4px solid #3b82f6 !important; }
+        .member-border-house  { border-left: 4px solid #8b5cf6 !important; }
+        .member-border-shop   { border-left: 4px solid #f59e0b !important; }
+        .member-border-vacant { border-left: 4px solid #94a3b8 !important; opacity: 0.65; }
+        .progress-bar-wrap { height: 4px; background: #f1f5f9; border-radius: 4px; overflow: hidden; margin-top: 6px; }
+        .progress-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+        @keyframes syncPulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+        .sync-pulse { animation: syncPulse 1.2s infinite; }
     </style>
 </head>
 <body>
@@ -241,24 +86,25 @@
 
         // --- Icons ---
         const Icons = {
-            Calc: () => <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></svg>,
-            Reset: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>,
-            Trash: () => <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>,
-            Plus: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>,
-            Copy: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>,
-            Image: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>,
-            Settings: () => <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
-            Save: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>,
-            Download: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>,
-            History: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>,
-            Send: () => <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
-            ChevronDown: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>,
-            ChevronUp: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>,
-            Cloud: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>,
+            Calc: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></svg>,
+            Reset: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>,
+            Trash: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>,
+            Plus: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>,
+            Copy: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>,
+            Image: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>,
+            Settings: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+            Save: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>,
+            Download: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>,
+            History: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>,
+            Send: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
+            ChevronDown: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>,
+            ChevronUp: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>,
+            Cloud: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.5 19c0-3.037-2.463-5.5-5.5-5.5S6.5 15.963 6.5 19"/><path d="M19 19V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v14"/><path d="M12 10v4"/><path d="M12 2v3"/></svg>,
             CloudOff: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="2" y1="2" x2="22" y2="22"/><path d="M5.034 5.034A2 2 0 0 0 5 6v11a2 2 0 0 0 2 2h12a2 2 0 0 0 1.926-.854"/><path d="M19 11V6a2 2 0 0 0-2-2H9.83"/></svg>,
-            Chart: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>,
-            List: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>,
-            Nuke: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
+            Chart: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg>,
+            List: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>,
+            Nuke: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/><path d="M12 12v6"/><path d="M12 6h.01"/></svg>,
+            CopyImage: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><path d="M16 4h2a2 2 0 0 1 2 2v4"/><path d="M21 14H11"/><path d="m15 10-4 4 4 4"/></svg>
         };
 
         const DEFAULT_MEMBERS = [
@@ -270,26 +116,29 @@
             { id: 6, unit: 'S-1', name: 'Shop 1', type: 'shop', count: 1 },
         ];
 
+        // --- CUSTOM SORT FUNCTION ---
         const sortMembersList = (list) => {
             return [...list].sort((a, b) => {
                 const u1 = (a.unit || '').toString().toLowerCase().trim();
                 const u2 = (b.unit || '').toString().toLowerCase().trim();
+
                 const getRank = (str) => {
-                    if (str.startsWith('g')) return 1;
-                    if (/^\d/.test(str)) return 2;
-                    if (str.startsWith('s') || str.includes('shop')) return 3;
-                    return 4;
+                    if (str.startsWith('g')) return 1; // Ground Floor Priority
+                    if (/^\d/.test(str)) return 2;     // Numeric (101, 102...)
+                    if (str.startsWith('s') || str.includes('shop')) return 3; // Shops Last
+                    return 4; // Others
                 };
-                const r1 = getRank(u1), r2 = getRank(u2);
+
+                const r1 = getRank(u1);
+                const r2 = getRank(u2);
+
                 if (r1 !== r2) return r1 - r2;
                 return u1.localeCompare(u2, undefined, { numeric: true, sensitivity: 'base' });
             });
         };
 
-        const TYPE_COLORS = { family: '#3b82f6', house: '#8b5cf6', shop: '#f59e0b', vacant: '#94a3b8' };
-        const TYPE_LABELS = { family: 'Family', house: 'Fixed House', shop: 'Fixed Shop', vacant: 'Vacant' };
-
         function App() {
+            // State
             const [activeTab, setActiveTab] = useState('calc'); 
             const [historyView, setHistoryView] = useState('list');
             const [waterBill, setWaterBill] = useState('');
@@ -322,22 +171,19 @@
                 const savedCloud = loadSafe('billSplitterCloudConfig');
                 
                 if (savedData) {
-                    // Load members/rates from localStorage (will be overridden by cloud if active)
+                    // Restore members and rates only
+                    // Bill inputs (waterBill, motorBill, tankerBill, billMonth) always reset to current month
                     if(savedData.members) setMembers(savedData.members);
                     if(savedData.houseRate) setHouseRate(savedData.houseRate);
                     if(savedData.shopRate) setShopRate(savedData.shopRate);
-                    // ✅ FIX: Do NOT restore billMonth - always default to current month
-                    // if(savedData.waterBill) setWaterBill(savedData.waterBill);  // Don't restore old bills
-                    // if(savedData.motorBill) setMotorBill(savedData.motorBill);
-                    // if(savedData.tankerBill) setTankerBill(savedData.tankerBill);
                 }
                 
                 if (savedCloud) {
                     setCloudConfig(savedCloud);
                     if(savedCloud.apiKey && savedCloud.projectId) initializeFirebase(savedCloud);
                 } else {
-                    const savedHistory = loadSafe('billSplitterHistory');
-                    if(savedHistory) setHistory(savedHistory);
+                      const savedHistory = loadSafe('billSplitterHistory');
+                      if(savedHistory) setHistory(savedHistory);
                 }
             }, []);
 
@@ -349,14 +195,14 @@
 
                 if (isCloudActive && window.firebaseApp && !ignoreRemoteUpdate.current) {
                     const saveDataToCloud = async () => {
-                        setSyncStatus('syncing');
+                        setSyncStatus('Syncing...');
                         try {
                             const db = firebase.firestore();
                             await db.collection("bills").doc("current_data").set(dataToSave);
-                            setSyncStatus('synced');
-                            setTimeout(() => setSyncStatus(''), 2500);
+                            setSyncStatus('Synced ✅');
+                            setTimeout(() => setSyncStatus(''), 2000);
                         } catch (e) {
-                            setSyncStatus('failed');
+                            setSyncStatus('Sync Failed ❌');
                         }
                     };
                     const timeout = setTimeout(saveDataToCloud, 2000); 
@@ -375,22 +221,22 @@
                         setIsCloudActive(true);
                         setIsLoading(true);
                         
-                        // ✅ BUG FIX: Actually load member names & rates from cloud
                         db.collection("bills").doc("current_data").onSnapshot((doc) => {
                             if (ignoreRemoteUpdate.current) return;
                             if (doc.exists) {
                                 const data = doc.data();
+                                // Load member names and rates from cloud (fixes "old names" bug)
                                 if (data.members && data.members.length > 0) setMembers(data.members);
                                 if (data.houseRate !== undefined) setHouseRate(data.houseRate);
                                 if (data.shopRate !== undefined) setShopRate(data.shopRate);
-                                // NOTE: We intentionally skip restoring billMonth, waterBill, motorBill, tankerBill
-                                // so each session starts fresh with current month
+                                // NOTE: intentionally NOT restoring billMonth/bills - those reset each session
                             }
                         });
                         
                         db.collection("bills").doc("history").onSnapshot((doc) => { 
                             setIsLoading(false);
                             if (ignoreRemoteUpdate.current) return;
+                            
                             if(doc.exists) {
                                 const data = doc.data();
                                 if(data.records) setHistory(data.records); 
@@ -412,19 +258,25 @@
                 }
             };
 
+            // --- COPY IMAGE FUNCTION ---
             const copyImage = () => {
                 const captureDiv = document.getElementById('receipt-capture');
-                captureDiv.style.left = "0";
+                captureDiv.style.left = "0"; // Move into view (temporarily)
+                
+                // Use scale 2 for high quality
                 html2canvas(captureDiv, { scale: 2, backgroundColor: "#ffffff", useCORS: true }).then(canvas => {
-                    captureDiv.style.left = "-9999px";
+                    captureDiv.style.left = "-9999px"; // Hide again
                     canvas.toBlob(blob => {
                         try {
                             const item = new ClipboardItem({ 'image/png': blob });
                             navigator.clipboard.write([item]).then(() => {
-                                alert('Receipt image copied!');
+                                alert("Receipt Image Copied to Clipboard! \nNow Paste it in WhatsApp.");
+                            }).catch(err => {
+                                console.error(err);
+                                alert("Copy failed. Try 'Download Image' instead.");
                             });
                         } catch (e) {
-                            alert("Your browser doesn't support Image Copy. Please use 'Save Image'.");
+                            alert("Your browser doesn't support Image Copy. Please use 'Download Image'.");
                         }
                     });
                 });
@@ -445,8 +297,11 @@
             const openWhatsApp = (text) => {
                 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
                 const encoded = encodeURIComponent(text);
-                if (isMobile) window.location.href = `whatsapp://send?text=${encoded}`;
-                else window.open(`https://web.whatsapp.com/send?text=${encoded}`, '_blank');
+                if (isMobile) {
+                    window.location.href = `whatsapp://send?text=${encoded}`;
+                } else {
+                    window.open(`https://web.whatsapp.com/send?text=${encoded}`, '_blank');
+                }
             };
 
             const handleCloudSubmit = () => {
@@ -464,13 +319,17 @@
                 const motor = parseFloat(motorBill) || 0;
                 const tanker = parseFloat(tankerBill) || 0;
                 const totalBill = water + motor + tanker;
-                let fixedCollection = 0, totalVariableMembers = 0;
+                let fixedCollection = 0;
+                let totalVariableMembers = 0;
                 const hRate = parseFloat(houseRate) || 0;
                 const sRate = parseFloat(shopRate) || 0;
 
+                // 1. AUTOMATIC ORDERING: Sort members properly before calculation
                 const sortedMembers = sortMembersList(members);
+                // Update the state so the input list also reflects the proper order
                 setMembers(sortedMembers);
 
+                // Use sortedMembers for calculation
                 sortedMembers.forEach(m => {
                     if (m.type === 'house') fixedCollection += hRate;
                     else if (m.type === 'shop') fixedCollection += sRate;
@@ -487,20 +346,27 @@
                 }
 
                 let calculatedTotal = 0;
+                
+                // 2. GENERATE BREAKDOWN & REMOVE VACANT (Filter)
                 const breakdown = sortedMembers.map(m => {
                     let amount = 0, detail = '';
                     if (m.type === 'house') { amount = Math.round(finalHRate); detail = 'Fixed House'; }
                     else if (m.type === 'shop') { amount = Math.round(finalSRate); detail = 'Fixed Shop'; }
                     else if (m.type === 'vacant') { amount = 0; detail = 'Vacant'; }
-                    else { amount = Math.round((parseInt(m.count) || 0) * perPerson); detail = `${m.count} members × ₹${perPerson.toFixed(2)}`; }
+                    else { 
+                        amount = Math.round((parseInt(m.count) || 0) * perPerson); 
+                        detail = `${m.count} members × ₹${perPerson.toFixed(2)}`; 
+                    }
                     calculatedTotal += amount;
-                    return { ...m, amount, detail, paidAmount: 0 };
-                }).filter(m => m.type !== 'vacant');
+                    return { ...m, amount, detail, paidAmount: 0 }; 
+                }).filter(m => m.type !== 'vacant'); // <--- FIX: Exclude Vacant from Bill Result
 
                 const difference = totalBill - calculatedTotal; 
                 if (difference !== 0 && totalVariableMembers > 0) {
                     const firstFamilyIndex = breakdown.findIndex(m => m.type === 'family' && m.amount > 0);
-                    if (firstFamilyIndex !== -1) breakdown[firstFamilyIndex].amount += difference;
+                    if (firstFamilyIndex !== -1) {
+                        breakdown[firstFamilyIndex].amount += difference;
+                    }
                 }
 
                 const [year, month] = billMonth.split('-');
@@ -509,15 +375,19 @@
             };
 
             const updateCloudHistory = async (newHistory) => {
-                ignoreRemoteUpdate.current = true;
+                ignoreRemoteUpdate.current = true; // LOCK SYNC
                 setHistory(newHistory); 
+
                 if (isCloudActive && window.firebaseApp) {
                     try {
                         const db = firebase.firestore();
                         await db.collection("bills").doc("history").set({ records: newHistory });
-                    } catch (e) { alert("Failed to update Cloud! Check internet."); }
+                    } catch (e) { 
+                        alert("Failed to update Cloud! Check internet.");
+                    }
                 }
-                setTimeout(() => { ignoreRemoteUpdate.current = false; }, 2000);
+
+                setTimeout(() => { ignoreRemoteUpdate.current = false; }, 2000); // UNLOCK
             };
 
             const saveToHistory = () => { if(!result) return; updateCloudHistory([result, ...history]); alert("Saved to History!"); };
@@ -538,7 +408,8 @@
             const deleteHistory = (i, e) => { 
                 e.stopPropagation(); 
                 if(confirm("Delete this record permanently?")) {
-                    updateCloudHistory(history.filter((_, idx) => idx !== i));
+                    const newHistory = history.filter((_, idx) => idx !== i);
+                    updateCloudHistory(newHistory);
                 }
             };
 
@@ -546,7 +417,9 @@
                 if(confirm("⚠️ DANGER: Clear ALL History?")) {
                     if(confirm("This cannot be undone. Are you sure?")) {
                         updateCloudHistory([]);
-                        if (isCloudActive && window.firebaseApp) firebase.firestore().collection("bills").doc("history").delete();
+                        if (isCloudActive && window.firebaseApp) {
+                             firebase.firestore().collection("bills").doc("history").delete();
+                         }
                         alert("History Cleared.");
                     }
                 }
@@ -568,25 +441,32 @@
                 openWhatsApp(msg);
             };
             
+            // --- UPDATED: EXACT TEXT FORMAT COPY ---
             const shareFullBill = () => {
                 let text = ``;
                 if(result.water > 0) text += `Water Bill: ₹${result.water}\n`;
                 if(result.motor > 0) text += `Motor Bill: ₹${result.motor}\n`;
                 if(result.tanker > 0) text += `Tanker Bill: ₹${result.tanker}\n`;
+                
                 text += `\n*Bill - ${result.billMonthName}*\n`;
                 text += `Total: ₹${result.totalBill}\n`;
                 if(result.perPerson > 0) text += `Rate: ₹${result.perPerson.toFixed(2)}/head\n\n`;
+                
                 result.breakdown.forEach(i => {
+                    // Format: "101 Name : ₹Amount"
                     const unitPart = i.unit ? `${i.unit} ` : '';
-                    text += `${unitPart}${i.name || 'Unknown'} : ₹${Math.round(i.amount)}\n`;
+                    const namePart = i.name || 'Unknown';
+                    text += `${unitPart}${namePart} : ₹${Math.round(i.amount)}\n`;
                 });
+                
                 const t = document.createElement("textarea"); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); alert('Copied to Clipboard!');
             };
             
             const reset = () => { if(confirm("Reset all?")) { setMembers(DEFAULT_MEMBERS); setWaterBill(''); setMotorBill(''); setTankerBill(''); setResult(null); }};
 
+            // Stats Logic (Same as before)
             const getUniqueYears = () => {
-                const years = new Set([new Date().getFullYear().toString()]);
+                const years = new Set([new Date().getFullYear().toString()]); 
                 years.add((new Date().getFullYear() + 1).toString());
                 history.forEach(h => {
                     let y = new Date(h.date).getFullYear().toString();
@@ -601,10 +481,12 @@
                     let recordYear = new Date(h.date).getFullYear().toString();
                     if(h.billMonthKey) recordYear = h.billMonthKey.split('-')[0]; 
                     if (statsYear !== 'All' && recordYear !== statsYear) return; 
+
                     stats.water += parseFloat(h.water || 0);
                     stats.motor += parseFloat(h.motor || 0);
                     stats.tanker += parseFloat(h.tanker || 0);
                     stats.grand += parseFloat(h.totalBill || 0);
+                    
                     h.breakdown.forEach(b => {
                         const key = b.unit ? `${b.unit} ${b.name}` : b.name;
                         if(!stats.members[key]) stats.members[key] = { amount: 0, paid: 0 };
@@ -618,66 +500,41 @@
             const stats = calculateStats();
             const availableYears = getUniqueYears();
 
-            // Sync status display
-            const SyncBadge = () => {
-                if (!isCloudActive) return null;
-                if (syncStatus === 'syncing') return <span className="text-xs text-blue-400 syncing font-semibold">⟳ Syncing...</span>;
-                if (syncStatus === 'synced') return <span className="text-xs text-green-500 font-semibold">✓ Synced</span>;
-                if (syncStatus === 'failed') return <span className="text-xs text-red-400 font-semibold">✗ Sync failed</span>;
-                return null;
-            };
-
             return (
-                <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="min-h-screen p-3 md:p-6 max-w-lg mx-auto pb-20">
-                    
-                    {/* HEADER */}
-                    <div style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 50%, #2563eb 100%)', borderRadius: '20px', padding: '20px 22px', marginBottom: '4px', boxShadow: '0 8px 32px rgba(29,78,216,0.3)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div className="min-h-screen p-3 md:p-6 max-w-2xl mx-auto text-slate-900 pb-20 app-container">
+                    <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
+                        {/* HEADER */}
+                        <div className="bg-gradient-header p-6 text-white flex justify-between items-center" style={{borderRadius: "0"}}>
                             <div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                                    <h1 style={{ color: 'white', fontSize: '1.5rem', fontWeight: '800', letterSpacing: '-0.02em', margin: 0 }}>Bill Splitter</h1>
-                                    {isCloudActive && <span style={{ background: 'rgba(16,185,129,0.25)', border: '1px solid rgba(16,185,129,0.5)', color: '#6ee7b7', fontSize: '0.65rem', fontWeight: '700', padding: '2px 8px', borderRadius: '20px', letterSpacing: '0.05em' }}>CLOUD ⚡</span>}
+                                <div className="flex items-center gap-2">
+                                    <h1 className="text-2xl font-bold">Bill Splitter</h1>
+                                    {isCloudActive && <span className="cloud-active-pill">CLOUD ⚡</span>}
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minHeight: '18px' }}>
-                                    <p style={{ color: 'rgba(147,197,253,0.8)', fontSize: '0.8rem', margin: 0 }}>Utility Bill Manager</p>
-                                    <SyncBadge />
-                                </div>
+                                <p className="text-blue-100 opacity-90 text-sm mt-1 flex items-center gap-2">
+                                    Utility Bill Manager
+                                    {syncStatus === 'Syncing...' && <span style={{color:'#93c5fd', fontSize:'0.75rem'}} className="sync-pulse">⟳ Syncing</span>}
+                                    {syncStatus === 'Synced ✅' && <span style={{color:'#4ade80', fontSize:'0.75rem'}}>✓ Synced</span>}
+                                    {syncStatus === 'Sync Failed ❌' && <span style={{color:'#f87171', fontSize:'0.75rem'}}>✗ Failed</span>}
+                                </p>
                             </div>
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                                <button onClick={() => setShowCloudSetup(true)} style={{ width: '40px', height: '40px', borderRadius: '50%', background: isCloudActive ? 'rgba(16,185,129,0.25)' : 'rgba(255,255,255,0.12)', border: isCloudActive ? '1px solid rgba(16,185,129,0.4)' : '1px solid rgba(255,255,255,0.15)', color: isCloudActive ? '#6ee7b7' : 'rgba(255,255,255,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                                    {isCloudActive ? <Icons.Cloud /> : <Icons.CloudOff />}
-                                </button>
-                                <button onClick={reset} style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                                    <Icons.Reset />
-                                </button>
+                            <div className="flex gap-2">
+                                <button onClick={()=>setShowCloudSetup(true)} className={`p-2 rounded-full transition ${isCloudActive ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-500 hover:bg-blue-400'}`} title="Cloud Setup">{isCloudActive ? <Icons.Cloud /> : <Icons.CloudOff />}</button>
+                                <button onClick={reset} className="p-2 bg-blue-500 rounded-full hover:bg-blue-400" title="Reset"><Icons.Reset /></button>
                             </div>
                         </div>
-                    </div>
-
-                    {/* MAIN CARD */}
-                    <div style={{ background: 'white', borderRadius: '20px', overflow: 'hidden', border: '1px solid #e2e8f0', boxShadow: '0 4px 24px rgba(29,78,216,0.08)', marginTop: '12px' }}>
 
                         {/* CLOUD SETUP MODAL */}
                         {showCloudSetup && (
-                            <div className="modal-overlay">
-                                <div style={{ background: 'white', borderRadius: '20px', padding: '28px', width: '100%', maxWidth: '360px', boxShadow: '0 24px 64px rgba(0,0,0,0.2)' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-                                        <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#dbeafe', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb' }}><Icons.Cloud /></div>
-                                        <h2 style={{ fontSize: '1.15rem', fontWeight: '800', margin: 0, color: '#0f172a' }}>Cloud Setup</h2>
+                            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                                <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl">
+                                    <h2 className="text-xl font-bold mb-4">☁️ Cloud Setup</h2>
+                                    <div className="space-y-3">
+                                        <div><label className="text-xs font-bold text-slate-500">API Key</label><input type="text" value={cloudConfig.apiKey} onChange={e=>setCloudConfig({...cloudConfig, apiKey: e.target.value})} className="w-full p-2 border rounded" placeholder="AIzaSy..." /></div>
+                                        <div><label className="text-xs font-bold text-slate-500">Project ID</label><input type="text" value={cloudConfig.projectId} onChange={e=>setCloudConfig({...cloudConfig, projectId: e.target.value})} className="w-full p-2 border rounded" placeholder="familybills-123" /></div>
                                     </div>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                                        <div>
-                                            <label style={{ fontSize: '0.72rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '6px' }}>Firebase API Key</label>
-                                            <input type="text" value={cloudConfig.apiKey} onChange={e=>setCloudConfig({...cloudConfig, apiKey: e.target.value})} className="input-field" placeholder="AIzaSy..." />
-                                        </div>
-                                        <div>
-                                            <label style={{ fontSize: '0.72rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '6px' }}>Project ID</label>
-                                            <input type="text" value={cloudConfig.projectId} onChange={e=>setCloudConfig({...cloudConfig, projectId: e.target.value})} className="input-field" placeholder="familybills-123" />
-                                        </div>
-                                    </div>
-                                    <div style={{ display: 'flex', gap: '10px', marginTop: '22px' }}>
-                                        <button onClick={() => setShowCloudSetup(false)} style={{ flex: 1, padding: '12px', borderRadius: '12px', background: '#f1f5f9', color: '#64748b', fontWeight: '700', border: 'none', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>Cancel</button>
-                                        <button onClick={handleCloudSubmit} style={{ flex: 1, padding: '12px', borderRadius: '12px', background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', color: 'white', fontWeight: '700', border: 'none', cursor: 'pointer', boxShadow: '0 4px 12px rgba(37,99,235,0.3)', fontFamily: "'DM Sans', sans-serif" }}>Connect</button>
+                                    <div className="mt-6 flex gap-2">
+                                        <button onClick={()=>setShowCloudSetup(false)} className="flex-1 py-2 text-slate-500 font-bold">Cancel</button>
+                                        <button onClick={handleCloudSubmit} className="flex-1 py-2 bg-blue-600 text-white rounded-lg font-bold">Connect</button>
                                     </div>
                                 </div>
                             </div>
@@ -686,194 +543,107 @@
                         {/* PAYMENT MODAL */}
                         {paymentModal.show && (
                             <div className="modal-overlay">
-                                <div style={{ background: 'white', borderRadius: '20px', padding: '28px', width: '100%', maxWidth: '320px', boxShadow: '0 24px 64px rgba(0,0,0,0.2)' }} className="animate-in">
-                                    <h3 style={{ fontSize: '1.1rem', fontWeight: '800', margin: '0 0 4px', color: '#0f172a' }}>Manage Payment</h3>
-                                    <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 18px' }}>{paymentModal.name}</p>
-                                    <div style={{ background: '#f8fafc', borderRadius: '12px', padding: '16px', textAlign: 'center', marginBottom: '18px', border: '1px solid #e2e8f0' }}>
-                                        <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Total Due</div>
-                                        <div style={{ fontSize: '2rem', fontWeight: '800', color: '#0f172a', lineHeight: 1.2 }}>₹{Math.round(paymentModal.total)}</div>
+                                <div className="bg-white rounded-xl p-6 w-full max-w-xs shadow-2xl animate-in fade-in zoom-in">
+                                    <h3 className="text-lg font-bold mb-1">Manage Payment</h3>
+                                    <p className="text-sm text-slate-500 mb-4">{paymentModal.name}</p>
+                                    <div className="bg-slate-50 p-3 rounded mb-4 text-center">
+                                        <div className="text-xs text-slate-400 uppercase">Total Due</div>
+                                        <div className="text-2xl font-bold">₹{Math.round(paymentModal.total)}</div>
                                     </div>
-                                    <div style={{ marginBottom: '16px' }}>
-                                        <label style={{ fontSize: '0.72rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '6px' }}>Paid Amount (₹)</label>
-                                        <input type="number" autoFocus value={paymentModal.currentPaid} onChange={(e) => setPaymentModal({...paymentModal, currentPaid: e.target.value})} style={{ width: '100%', fontSize: '1.6rem', padding: '8px', borderBottom: '2px solid #3b82f6', outline: 'none', textAlign: 'center', fontWeight: '800', fontFamily: "'DM Sans', sans-serif", background: 'transparent' }} />
+                                    <div className="mb-4">
+                                        <label className="text-xs font-bold text-slate-500">Paid Amount (₹)</label>
+                                        <input type="number" autoFocus value={paymentModal.currentPaid} onChange={(e) => setPaymentModal({...paymentModal, currentPaid: e.target.value})} className="w-full text-xl p-2 border-b-2 border-blue-500 outline-none text-center font-bold" />
                                     </div>
-                                    <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
-                                        <button onClick={() => savePayment(0)} style={{ flex: 1, padding: '10px', borderRadius: '10px', background: '#fee2e2', color: '#dc2626', fontWeight: '700', fontSize: '0.8rem', border: 'none', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>Unpaid</button>
-                                        <button onClick={() => savePayment(paymentModal.total)} style={{ flex: 1, padding: '10px', borderRadius: '10px', background: '#dcfce7', color: '#16a34a', fontWeight: '700', fontSize: '0.8rem', border: 'none', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>Full Pay</button>
+                                    <div className="flex gap-2">
+                                        <button onClick={()=>savePayment(0)} className="flex-1 py-2 bg-red-100 text-red-600 rounded font-bold text-xs">Unpaid</button>
+                                        <button onClick={()=>savePayment(paymentModal.total)} className="flex-1 py-2 bg-green-100 text-green-600 rounded font-bold text-xs">Full</button>
                                     </div>
-                                    <button onClick={() => savePayment(paymentModal.currentPaid)} style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', color: 'white', fontWeight: '700', border: 'none', cursor: 'pointer', boxShadow: '0 4px 12px rgba(37,99,235,0.3)', fontFamily: "'DM Sans', sans-serif" }}>Save Payment</button>
+                                    <button onClick={()=>savePayment(paymentModal.currentPaid)} className="w-full mt-3 py-3 bg-blue-600 text-white rounded-lg font-bold">Save Payment</button>
                                 </div>
                             </div>
                         )}
 
-                        {/* TABS */}
-                        <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0' }}>
-                            <button onClick={() => setActiveTab('calc')} style={{ flex: 1, padding: '14px', fontWeight: activeTab==='calc'?'700':'500', color: activeTab==='calc'?'#2563eb':'#64748b', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.9rem', fontFamily: "'DM Sans', sans-serif", position: 'relative', borderBottom: activeTab==='calc'?'3px solid #2563eb':'3px solid transparent' }}>
-                                Calculator
-                            </button>
-                            <button onClick={() => setActiveTab('history')} style={{ flex: 1, padding: '14px', fontWeight: activeTab==='history'?'700':'500', color: activeTab==='history'?'#2563eb':'#64748b', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.9rem', fontFamily: "'DM Sans', sans-serif", position: 'relative', borderBottom: activeTab==='history'?'3px solid #2563eb':'3px solid transparent' }}>
-                                History {history.length > 0 && <span style={{ background: '#dbeafe', color: '#2563eb', borderRadius: '20px', padding: '1px 8px', fontSize: '0.75rem', fontWeight: '800', marginLeft: '4px' }}>{history.length}</span>}
-                            </button>
+                        <div className="flex border-b border-slate-200">
+                            <button onClick={()=>setActiveTab('calc')} className={`flex-1 py-3 text-center ${activeTab==='calc'?'tab-active':'tab-inactive'}`}>Calculator</button>
+                            <button onClick={()=>setActiveTab('history')} className={`flex-1 py-3 text-center ${activeTab==='history'?'tab-active':'tab-inactive'}`}>History ({history.length})</button>
                         </div>
 
-                        <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-
+                        <div className="p-5 space-y-6">
+                            
+                            
                             {activeTab === 'calc' && (
                                 <>
-                                    {/* BILL AMOUNTS SECTION */}
-                                    <section style={{ background: '#f8fafc', borderRadius: '16px', padding: '18px', border: '1px solid #e2e8f0' }}>
-                                        <div className="section-label">
-                                            <span className="step-num">1</span>
-                                            Bill Amounts
+                                    <section className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                        <h2 className="text-md font-bold text-slate-700 mb-3">1. Bill Amounts</h2>
+                                        <div className="mb-4">
+                                            <label className="block text-xs font-bold text-blue-600 uppercase mb-1">Bill Month</label>
+                                            <input type="month" value={billMonth} onChange={(e) => setBillMonth(e.target.value)} className="w-full p-2 border-2 border-blue-100 rounded-lg font-bold text-slate-700 outline-none focus:border-blue-500" />
                                         </div>
-                                        
-                                        <div style={{ marginBottom: '14px' }}>
-                                            <label style={{ fontSize: '0.72rem', fontWeight: '700', color: '#2563eb', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '6px' }}>Bill Month</label>
-                                            <input type="month" value={billMonth} onChange={(e) => setBillMonth(e.target.value)} className="input-field" style={{ borderColor: '#93c5fd' }} />
+                                        <div className="grid grid-cols-2 gap-3 mb-3">
+                                            <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Water</label><input type="number" value={waterBill} onChange={e=>setWaterBill(e.target.value)} className="w-full text-xl p-2 rounded-lg border border-slate-300 outline-none" placeholder="0" /></div>
+                                            <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Motor</label><input type="number" value={motorBill} onChange={e=>setMotorBill(e.target.value)} className="w-full text-xl p-2 rounded-lg border border-slate-300 outline-none" placeholder="0" /></div>
                                         </div>
-
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-                                            <div>
-                                                <label style={{ fontSize: '0.7rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '6px' }}>
-                                                    💧 Water
-                                                </label>
-                                                <input type="number" value={waterBill} onChange={e => setWaterBill(e.target.value)} className="input-field" style={{ fontSize: '1.2rem' }} placeholder="0" />
-                                            </div>
-                                            <div>
-                                                <label style={{ fontSize: '0.7rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '6px' }}>
-                                                    ⚙️ Motor
-                                                </label>
-                                                <input type="number" value={motorBill} onChange={e => setMotorBill(e.target.value)} className="input-field" style={{ fontSize: '1.2rem' }} placeholder="0" />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label style={{ fontSize: '0.7rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '6px' }}>
-                                                🚚 Tanker
-                                            </label>
-                                            <input type="number" value={tankerBill} onChange={e => setTankerBill(e.target.value)} className="input-field" style={{ fontSize: '1.2rem' }} placeholder="0" />
-                                        </div>
+                                        <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Tanker</label><input type="number" value={tankerBill} onChange={e=>setTankerBill(e.target.value)} className="w-full text-xl p-2 rounded-lg border border-slate-300 outline-none" placeholder="0" /></div>
                                     </section>
 
-                                    {/* MEMBERS SECTION */}
                                     <section>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                                            <div className="section-label" style={{ margin: 0 }}>
-                                                <span className="step-num">2</span>
-                                                Register
-                                            </div>
-                                            <button onClick={() => setShowSettings(!showSettings)} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: '#2563eb', fontWeight: '700', background: '#dbeafe', padding: '5px 10px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
-                                                <Icons.Settings /> {showSettings ? 'Hide Rates' : 'Edit Rates'}
-                                            </button>
+                                        <div className="flex justify-between items-center mb-3">
+                                            <h2 className="text-md font-bold text-slate-700">2. Register</h2>
+                                            <button onClick={()=>setShowSettings(!showSettings)} className="flex items-center gap-1 text-xs text-blue-600 font-bold bg-blue-50 px-2 py-1 rounded border border-blue-200"><Icons.Settings /> {showSettings?'Hide Rates':'Edit Rates'}</button>
                                         </div>
-
                                         {showSettings && (
-                                            <div style={{ background: '#fffbeb', borderRadius: '12px', padding: '14px', border: '1px solid #fde68a', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                                                <div>
-                                                    <label style={{ fontSize: '0.7rem', fontWeight: '700', color: '#92400e', display: 'block', marginBottom: '5px' }}>🏠 House Fixed (₹)</label>
-                                                    <input type="number" value={houseRate} onChange={e => setHouseRate(e.target.value)} className="input-field" style={{ padding: '8px 10px', fontSize: '0.95rem' }} />
-                                                </div>
-                                                <div>
-                                                    <label style={{ fontSize: '0.7rem', fontWeight: '700', color: '#92400e', display: 'block', marginBottom: '5px' }}>🏪 Shop Fixed (₹)</label>
-                                                    <input type="number" value={shopRate} onChange={e => setShopRate(e.target.value)} className="input-field" style={{ padding: '8px 10px', fontSize: '0.95rem' }} />
-                                                </div>
+                                            <div className="mb-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200 grid grid-cols-2 gap-4">
+                                                <div><label className="text-xs font-bold text-yellow-800 block mb-1">House Fixed</label><input type="number" value={houseRate} onChange={e=>setHouseRate(e.target.value)} className="w-full p-1 border rounded" /></div>
+                                                <div><label className="text-xs font-bold text-yellow-800 block mb-1">Shop Fixed</label><input type="number" value={shopRate} onChange={e=>setShopRate(e.target.value)} className="w-full p-1 border rounded" /></div>
                                             </div>
                                         )}
-
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        <div className="space-y-3">
                                             {members.map(m => (
-                                                <div key={m.id} style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', borderLeft: `4px solid ${TYPE_COLORS[m.type] || '#94a3b8'}` }}>
-                                                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                                                        <input type="text" value={m.unit} onChange={e => handleUpdateMember(m.id, 'unit', e.target.value)} style={{ width: '70px', fontWeight: '800', padding: '6px 8px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', textAlign: 'center', textTransform: 'uppercase', fontSize: '0.85rem', fontFamily: "'DM Sans', sans-serif", outline: 'none' }} placeholder="Unit" />
-                                                        <input type="text" value={m.name} onChange={e => handleUpdateMember(m.id, 'name', e.target.value)} style={{ flex: 1, fontWeight: '600', padding: '6px 8px', borderBottom: '2px solid #e2e8f0', outline: 'none', fontSize: '0.9rem', fontFamily: "'DM Sans', sans-serif", background: 'transparent' }} placeholder="Name" />
-                                                        <button onClick={() => handleRemoveMember(m.id)} style={{ color: '#cbd5e1', background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }} onMouseOver={e=>e.currentTarget.style.color='#ef4444'} onMouseOut={e=>e.currentTarget.style.color='#cbd5e1'}>
-                                                            <Icons.Trash />
-                                                        </button>
+                                                <div key={m.id} className={`flex flex-col gap-2 p-3 bg-white rounded-lg border border-slate-200 shadow-sm member-border-${m.type}`}>
+                                                    <div className="flex gap-2">
+                                                        <div className="w-1/3"><input type="text" value={m.unit} onChange={e=>handleUpdateMember(m.id,'unit',e.target.value)} className="w-full font-bold p-1 bg-slate-50 rounded border text-center uppercase" placeholder="Unit" /></div>
+                                                        <div className="flex-grow flex gap-2"><input type="text" value={m.name} onChange={e=>handleUpdateMember(m.id,'name',e.target.value)} className="w-full font-semibold p-1 border-b focus:border-blue-500 outline-none" placeholder="Name" /><button onClick={()=>handleRemoveMember(m.id)} className="text-slate-300 hover:text-red-500"><Icons.Trash /></button></div>
                                                     </div>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f8fafc', borderRadius: '8px', padding: '6px 10px' }}>
-                                                        <div className="select-wrapper" style={{ flex: 1 }}>
-                                                            <select value={m.type} onChange={e => handleUpdateMember(m.id, 'type', e.target.value)} style={{ width: '100%', background: 'transparent', fontSize: '0.8rem', fontWeight: '600', outline: 'none', appearance: 'none', border: 'none', color: TYPE_COLORS[m.type], fontFamily: "'DM Sans', sans-serif", cursor: 'pointer', paddingRight: '20px' }}>
-                                                                <option value="family">Family</option>
-                                                                <option value="house">Fixed House</option>
-                                                                <option value="shop">Fixed Shop</option>
-                                                                <option value="vacant">Vacant</option>
-                                                            </select>
-                                                        </div>
-                                                        {m.type === 'family' && (
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'white', borderRadius: '6px', padding: '3px 8px', border: '1px solid #e2e8f0' }}>
-                                                                <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Members</span>
-                                                                <input type="number" value={m.count} onChange={e => handleUpdateMember(m.id, 'count', e.target.value)} style={{ width: '36px', textAlign: 'center', fontWeight: '800', outline: 'none', border: 'none', fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', background: 'transparent' }} />
-                                                            </div>
-                                                        )}
+                                                    <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-md">
+                                                        <div className="flex-grow select-wrapper"><select value={m.type} onChange={e=>handleUpdateMember(m.id,'type',e.target.value)} className="w-full bg-transparent text-sm font-medium outline-none appearance-none"><option value="family">Family</option><option value="house">Fixed House</option><option value="shop">Fixed Shop</option><option value="vacant">Vacant</option></select></div>
+                                                        {m.type==='family' && <div className="flex items-center gap-1 bg-white rounded px-2 border"><span className="text-[10px] text-slate-400 font-bold">MEMBERS</span><input type="number" value={m.count} onChange={e=>handleUpdateMember(m.id,'count',e.target.value)} className="w-10 text-center font-bold outline-none" /></div>}
                                                     </div>
                                                 </div>
                                             ))}
                                         </div>
-
-                                        <button onClick={handleAddMember} style={{ marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: '#3b82f6', fontWeight: '700', fontSize: '0.85rem', width: '100%', padding: '11px', border: '2px dashed #bfdbfe', borderRadius: '12px', background: 'none', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif' }}>
-                                            <Icons.Plus /> Add Unit
-                                        </button>
+                                        <button onClick={handleAddMember} className="mt-4 flex items-center justify-center gap-2 text-blue-600 font-bold text-sm w-full py-2 border border-dashed border-blue-200 rounded-lg hover:bg-blue-50"><Icons.Plus /> Add Unit</button>
                                     </section>
 
-                                    {/* CALCULATE BUTTON */}
-                                    <button onClick={calculate} className="btn-primary">
-                                        <Icons.Calc /> CALCULATE BILL
-                                    </button>
+                                    <button onClick={calculate} className="w-full py-3 bg-blue-600 text-white text-lg font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 active:scale-95 transition"><Icons.Calc /> CALCULATE</button>
 
-                                    {/* RESULTS */}
                                     {result && (
-                                        <div className="animate-in">
-                                            {/* Total Header */}
-                                            <div style={{ background: 'linear-gradient(135deg, #0f172a, #1e293b)', borderRadius: '16px 16px 0 0', padding: '20px 22px' }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                                                    <div>
-                                                        <div style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>{result.billMonthName}</div>
-                                                        <div style={{ color: '#4ade80', fontSize: '2.2rem', fontWeight: '800', lineHeight: 1 }}>₹{result.totalBill.toLocaleString()}</div>
-                                                        {result.perPerson > 0 && <div style={{ color: '#94a3b8', fontSize: '0.8rem', marginTop: '4px' }}>₹{result.perPerson.toFixed(2)} / head</div>}
-                                                    </div>
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-end' }}>
-                                                        {result.water > 0 && <span style={{ color: '#93c5fd', fontSize: '0.75rem' }}>💧 ₹{result.water}</span>}
-                                                        {result.motor > 0 && <span style={{ color: '#93c5fd', fontSize: '0.75rem' }}>⚙️ ₹{result.motor}</span>}
-                                                        {result.tanker > 0 && <span style={{ color: '#93c5fd', fontSize: '0.75rem' }}>🚚 ₹{result.tanker}</span>}
-                                                    </div>
+                                        <div className="animate-in fade-in slide-in-from-bottom-4">
+                                            <div className="bg-slate-800 text-white p-5 rounded-t-2xl mt-4">
+                                                <div className="flex justify-between items-end"><span className="text-slate-400 font-medium text-sm">Total</span><span className="text-3xl font-bold text-green-400">₹{result.totalBill.toLocaleString()}</span></div>
+                                                <div className="mt-2 text-xs text-slate-400 flex justify-between">
+                                                    <span>Rate: ₹{result.perPerson.toFixed(2)}/head</span>
+                                                    <button onClick={saveToHistory} className="flex items-center gap-1 text-white bg-slate-600 px-2 py-1 rounded hover:bg-slate-500"><Icons.Save /> Save to History</button>
                                                 </div>
-                                                <button onClick={saveToHistory} style={{ marginTop: '14px', display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', color: 'white', padding: '7px 14px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
-                                                    <Icons.Save /> Save to History
-                                                </button>
                                             </div>
-
-                                            {/* Breakdown */}
-                                            <div style={{ background: 'white', borderRadius: '0 0 16px 16px', border: '1px solid #e2e8f0', borderTop: 'none', padding: '4px 0' }}>
-                                                {result.breakdown.map(item => (
-                                                    <div key={item.id} style={{ padding: '12px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', borderLeft: `3px solid ${TYPE_COLORS[item.type] || '#94a3b8'}` }}>
-                                                        <div>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700', fontSize: '0.9rem', color: '#0f172a' }}>
-                                                                {item.unit && <span style={{ background: '#f1f5f9', padding: '2px 7px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800', border: '1px solid #e2e8f0', color: '#475569' }}>{item.unit}</span>}
-                                                                {item.name || 'Unknown'}
+                                            <div className="bg-white border-x border-b border-slate-200 rounded-b-2xl p-4 shadow-lg">
+                                                <div className="divide-y divide-slate-100">
+                                                    {result.breakdown.map(item => (
+                                                        <div key={item.id} className="py-3 flex justify-between items-center">
+                                                            <div>
+                                                                <div className="font-bold text-slate-700 text-sm">{item.unit && <span className="bg-slate-100 px-1 rounded mr-2 text-xs border">{item.unit}</span>}{item.name||'Unknown'}</div>
+                                                                <div className="text-xs text-slate-400">{item.detail}</div>
                                                             </div>
-                                                            <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>{item.detail}</div>
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="font-bold text-lg">₹{Math.round(item.amount)}</div>
+                                                                {item.amount > 0 && <button onClick={()=>sendIndividualReminder(item, result.date)} className="p-2 bg-green-100 text-green-600 rounded-full hover:bg-green-200" title="Send WhatsApp Reminder"><Icons.Send /></button>}
+                                                            </div>
                                                         </div>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                            <div style={{ fontWeight: '800', fontSize: '1.05rem', color: '#1e293b' }}>₹{Math.round(item.amount)}</div>
-                                                            {item.amount > 0 && (
-                                                                <button onClick={() => sendIndividualReminder(item, result.date)} style={{ width: '34px', height: '34px', borderRadius: '50%', background: '#dcfce7', color: '#16a34a', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                                                                    <Icons.Send />
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                ))}
-
-                                                {/* Share buttons */}
-                                                <div style={{ padding: '14px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                                                    <button onClick={shareFullBill} style={{ padding: '12px', borderRadius: '12px', background: '#dcfce7', color: '#15803d', fontWeight: '700', fontSize: '0.8rem', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontFamily: "'DM Sans', sans-serif" }}>
-                                                        <Icons.Copy /> Copy Text
-                                                    </button>
-                                                    <button onClick={copyImage} style={{ padding: '12px', borderRadius: '12px', background: '#dbeafe', color: '#1d4ed8', fontWeight: '700', fontSize: '0.8rem', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontFamily: "'DM Sans', sans-serif" }}>
-                                                        <Icons.Copy /> Copy Image
-                                                    </button>
-                                                    <button onClick={downloadImage} style={{ padding: '12px', borderRadius: '12px', background: '#f1f5f9', color: '#475569', fontWeight: '700', fontSize: '0.8rem', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', gridColumn: 'span 2', fontFamily: "'DM Sans', sans-serif" }}>
-                                                        <Icons.Image /> Save Image
-                                                    </button>
+                                                    ))}
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-3 mt-4">
+                                                    <button onClick={shareFullBill} className="py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md text-xs"><Icons.Copy /> Copy Text</button>
+                                                    <button onClick={copyImage} className="py-3 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md text-xs"><Icons.Copy /> Copy Image</button>
+                                                    <button onClick={downloadImage} className="py-3 bg-slate-500 hover:bg-slate-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md text-xs col-span-2"><Icons.Image /> Save Image</button>
                                                 </div>
                                             </div>
                                         </div>
@@ -883,85 +653,54 @@
 
                             {/* HISTORY TAB */}
                             {activeTab === 'history' && (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: '10px', padding: '4px', gap: '2px' }}>
-                                            <button onClick={() => setHistoryView('list')} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 14px', borderRadius: '7px', fontSize: '0.8rem', fontWeight: '700', border: 'none', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", background: historyView==='list'?'white':'transparent', color: historyView==='list'?'#2563eb':'#94a3b8', boxShadow: historyView==='list'?'0 1px 4px rgba(0,0,0,0.08)':'none' }}>
-                                                <Icons.List /> List
-                                            </button>
-                                            <button onClick={() => setHistoryView('stats')} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 14px', borderRadius: '7px', fontSize: '0.8rem', fontWeight: '700', border: 'none', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", background: historyView==='stats'?'white':'transparent', color: historyView==='stats'?'#2563eb':'#94a3b8', boxShadow: historyView==='stats'?'0 1px 4px rgba(0,0,0,0.08)':'none' }}>
-                                                <Icons.Chart /> Stats
-                                            </button>
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <div className="flex bg-slate-100 rounded-lg p-1">
+                                            <button onClick={()=>setHistoryView('list')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition ${historyView==='list'?'bg-white shadow text-blue-600':'text-slate-500'}`}><Icons.List /> List</button>
+                                            <button onClick={()=>setHistoryView('stats')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition ${historyView==='stats'?'bg-white shadow text-blue-600':'text-slate-500'}`}><Icons.Chart /> Stats</button>
                                         </div>
-                                        <div style={{ display: 'flex', gap: '6px' }}>
-                                            <button onClick={nukeHistory} style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#fee2e2', color: '#dc2626', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Clear All History"><Icons.Nuke /></button>
-                                            <button onClick={downloadExcel} style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#f1f5f9', color: '#64748b', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Download CSV"><Icons.Download /></button>
+                                        <div className="flex gap-2">
+                                            <button onClick={nukeHistory} className="p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200" title="Clear All History"><Icons.Nuke /></button>
+                                            <button onClick={downloadExcel} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200" title="Download Excel"><Icons.Download /></button>
                                         </div>
                                     </div>
                                     
-                                    {isLoading && (
-                                        <div style={{ textAlign: 'center', padding: '40px 0', color: '#3b82f6' }}>
-                                            <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>☁️</div>
-                                            <div style={{ fontWeight: '700', fontSize: '0.9rem' }}>Loading from Cloud...</div>
-                                        </div>
-                                    )}
+                                    {isLoading && <div className="text-center text-blue-500 py-4 font-bold">Loading Data from Cloud...</div>}
 
-                                    {!isLoading && history.length === 0 && (
-                                        <div style={{ textAlign: 'center', padding: '50px 20px', color: '#94a3b8' }}>
-                                            <div style={{ fontSize: '2.5rem', marginBottom: '10px' }}>📋</div>
-                                            <div style={{ fontWeight: '700', fontSize: '0.95rem' }}>No history saved yet</div>
-                                            <div style={{ fontSize: '0.8rem', marginTop: '4px' }}>Calculate a bill and save it to see it here</div>
-                                        </div>
-                                    )}
-
-                                    {!isLoading && history.length > 0 && (
+                                    {!isLoading && history.length === 0 ? <p className="text-center text-slate-400 py-10">No history saved yet.</p> : !isLoading && (
                                         <>
                                             {/* STATS VIEW */}
                                             {historyView === 'stats' && (
-                                                <div className="animate-in" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                        <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{statsYear === 'All' ? 'All Time' : `${statsYear} Overview`}</span>
-                                                        <select value={statsYear} onChange={(e) => setStatsYear(e.target.value)} style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '4px 10px', fontSize: '0.8rem', fontWeight: '700', fontFamily: "'DM Sans', sans-serif", outline: 'none' }}>
-                                                            {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
-                                                            <option value="All">All Time</option>
-                                                        </select>
+                                                <div className="animate-in fade-in space-y-4">
+                                                    <div className="flex justify-between items-center mb-2">
+                                                       <h3 className="text-sm font-bold text-slate-400 uppercase">{statsYear === 'All' ? 'All Time' : `${statsYear} Expenses`}</h3>
+                                                       <select value={statsYear} onChange={(e) => setStatsYear(e.target.value)} className="bg-white border rounded p-1 text-xs font-bold">
+                                                          {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+                                                          <option value="All">All Time</option>
+                                                       </select>
                                                     </div>
-
-                                                    <div style={{ background: 'linear-gradient(135deg, #0f172a, #1e293b)', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
-                                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-                                                            <div>
-                                                                <div style={{ color: '#64748b', fontSize: '0.7rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Total Billed</div>
-                                                                <div style={{ color: 'white', fontSize: '1.6rem', fontWeight: '800', lineHeight: 1.2 }}>₹{stats.grand.toLocaleString()}</div>
-                                                            </div>
-                                                            <div>
-                                                                <div style={{ color: '#64748b', fontSize: '0.7rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Collected</div>
-                                                                <div style={{ color: '#4ade80', fontSize: '1.6rem', fontWeight: '800', lineHeight: 1.2 }}>₹{stats.paidTotal.toLocaleString()}</div>
+                                                    <div className="bg-slate-800 text-white p-4 rounded-xl shadow-lg">
+                                                        <div className="grid grid-cols-2 gap-4">
+                                                            <div><div className="text-xs text-slate-400">Total Billed</div><div className="text-xl font-bold">₹{stats.grand.toLocaleString()}</div></div>
+                                                            <div><div className="text-xs text-slate-400">Total Collected</div><div className="text-xl font-bold text-green-400">₹{stats.paidTotal.toLocaleString()}</div></div>
+                                                            <div className="col-span-2 pt-2 border-t border-slate-700 flex justify-between">
+                                                                <span className="text-xs text-red-400">Total Pending:</span>
+                                                                <span className="text-sm font-bold text-red-400">₹{(stats.grand - stats.paidTotal).toLocaleString()}</span>
                                                             </div>
                                                         </div>
-                                                        <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                            <span style={{ color: '#f87171', fontSize: '0.8rem', fontWeight: '700' }}>Total Pending</span>
-                                                            <span style={{ color: '#f87171', fontSize: '1.1rem', fontWeight: '800' }}>₹{(stats.grand - stats.paidTotal).toLocaleString()}</span>
-                                                        </div>
                                                     </div>
-
-                                                    <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-                                                        <div style={{ fontSize: '0.75rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '12px' }}>Member Shares</div>
-                                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                    <div className="bg-white border rounded-xl p-4 shadow-sm">
+                                                        <h3 className="text-sm font-bold text-slate-600 mb-3 uppercase">Member Shares</h3>
+                                                        <div className="divide-y divide-slate-100">
                                                             {Object.entries(stats.members).map(([name, data]) => {
                                                                 const pending = data.amount - data.paid;
-                                                                const paidPct = data.amount > 0 ? (data.paid / data.amount) * 100 : 0;
                                                                 return (
-                                                                    <div key={name} style={{ padding: '10px 0', borderBottom: '1px solid #f1f5f9' }}>
-                                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
-                                                                            <span style={{ fontWeight: '700', color: '#1e293b', fontSize: '0.88rem' }}>{name}</span>
-                                                                            <div style={{ textAlign: 'right' }}>
-                                                                                <div style={{ fontSize: '0.72rem', color: '#64748b' }}>₹{Math.round(data.amount).toLocaleString()}</div>
-                                                                                <div style={{ fontSize: '0.75rem', fontWeight: '700', color: '#16a34a' }}>Paid ₹{Math.round(data.paid).toLocaleString()}</div>
-                                                                                {pending > 0 && <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#dc2626' }}>Due ₹{Math.round(pending).toLocaleString()}</div>}
-                                                                            </div>
-                                                                        </div>
-                                                                        <div style={{ height: '4px', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
-                                                                            <div style={{ width: `${Math.min(paidPct, 100)}%`, height: '100%', background: paidPct >= 100 ? '#22c55e' : paidPct > 0 ? '#f59e0b' : '#e2e8f0', borderRadius: '4px', transition: 'width 0.5s ease' }} />
+                                                                    <div key={name} className="py-3 flex justify-between items-center">
+                                                                        <span className="font-bold text-slate-700 text-sm w-1/3">{name}</span>
+                                                                        <div className="flex flex-col items-end">
+                                                                            <span className="text-xs text-slate-400">Billed: ₹{Math.round(data.amount).toLocaleString()}</span>
+                                                                            <span className="font-bold text-sm text-green-600">Paid: ₹{Math.round(data.paid).toLocaleString()}</span>
+                                                                            {pending > 0 && <span className="text-[10px] font-bold text-red-500">Due: ₹{Math.round(pending).toLocaleString()}</span>}
                                                                         </div>
                                                                     </div>
                                                                 );
@@ -973,125 +712,114 @@
 
                                             {/* LIST VIEW */}
                                             {historyView === 'list' && history.map((h, idx) => {
-                                                const totalPaid = h.breakdown.reduce((sum, item) => sum + (item.paidAmount || 0), 0);
-                                                const totalDue = h.totalBill - totalPaid;
-                                                const isExpanded = expandedHistory === idx;
+                                                const totalPaidForRecord = h.breakdown.reduce((sum, item) => sum + (item.paidAmount || 0), 0);
+                                                const totalDueForRecord = h.totalBill - totalPaidForRecord;
                                                 return (
-                                                    <div key={idx} onClick={() => setExpandedHistory(isExpanded ? null : idx)} style={{ background: isExpanded ? 'linear-gradient(135deg, #f0f9ff, #eff6ff)' : 'white', borderRadius: '14px', border: isExpanded ? '1px solid #93c5fd' : '1px solid #e2e8f0', padding: '16px', cursor: 'pointer', boxShadow: isExpanded ? '0 4px 20px rgba(59,130,246,0.12)' : '0 1px 4px rgba(0,0,0,0.04)', transition: 'all 0.2s', position: 'relative' }}>
-                                                        <button onClick={(e) => deleteHistory(idx, e)} style={{ position: 'absolute', top: '10px', right: '10px', width: '30px', height: '30px', borderRadius: '50%', background: 'transparent', border: 'none', color: '#cbd5e1', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onMouseOver={e=>e.currentTarget.style.color='#ef4444'} onMouseOut={e=>e.currentTarget.style.color='#cbd5e1'}>
-                                                            <Icons.Trash />
-                                                        </button>
-                                                        <div style={{ paddingRight: '30px' }}>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
-                                                                {h.billMonthName || h.date}
-                                                                {isExpanded ? <Icons.ChevronUp /> : <Icons.ChevronDown />}
-                                                            </div>
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '4px' }}>
-                                                                <span style={{ color: '#64748b' }}>Total Bill</span>
-                                                                <span style={{ fontWeight: '800' }}>₹{h.totalBill}</span>
-                                                            </div>
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-                                                                <span style={{ color: totalDue > 0 ? '#dc2626' : '#16a34a', fontWeight: '600' }}>{totalDue > 0 ? 'Pending' : 'Status'}</span>
-                                                                <span style={{ fontWeight: '700', color: totalDue > 0 ? '#dc2626' : '#16a34a' }}>{totalDue > 0 ? `₹${totalDue}` : '✅ All Paid'}</span>
-                                                            </div>
+                                                <div key={idx} className={`bg-white border rounded-xl p-4 shadow-sm relative cursor-pointer history-card ${expandedHistory === idx ? 'history-expanded' : 'border-slate-200'}`} onClick={() => setExpandedHistory(expandedHistory === idx ? null : idx)}>
+                                                    <button onClick={(e)=>deleteHistory(idx, e)} className="absolute top-2 right-2 text-slate-300 hover:text-red-500 z-10 p-2"><Icons.Trash /></button>
+                                                    <div className="pr-8">
+                                                        <div className="font-bold text-slate-700 mb-1 flex items-center gap-2">{h.billMonthName || h.date} {expandedHistory === idx ? <Icons.ChevronUp /> : <Icons.ChevronDown />}</div>
+                                                        <div className="flex justify-between text-sm mb-1"><span className="text-slate-500">Total Bill:</span><span className="font-bold">₹{h.totalBill}</span></div>
+                                                        <div className="flex justify-between text-xs">
+                                                            <span className={totalDueForRecord > 0 ? "text-red-400 font-semibold" : "text-green-500 font-semibold"}>{totalDueForRecord > 0 ? "Pending:" : "Status:"}</span>
+                                                            <span className={totalDueForRecord > 0 ? "font-bold text-red-500" : "font-bold text-green-500"}>{totalDueForRecord > 0 ? `₹${totalDueForRecord}` : "Paid ✅"}</span>
                                                         </div>
-
-                                                        {isExpanded && (
-                                                            <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid rgba(59,130,246,0.2)' }} className="animate-in">
-                                                                <div style={{ fontSize: '0.75rem', color: '#64748b', background: 'white', padding: '8px 12px', borderRadius: '8px', marginBottom: '10px', border: '1px solid #e2e8f0' }}>
-                                                                    💧 ₹{h.water} &nbsp;⚙️ ₹{h.motor} &nbsp;🚚 ₹{h.tanker}
-                                                                </div>
-                                                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                                    {h.breakdown.map((item, i) => (
-                                                                        <div key={i} style={{ padding: '10px 0', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                                            <div>
-                                                                                <div style={{ fontWeight: '700', fontSize: '0.88rem', color: '#1e293b' }}>{item.unit} {item.name}</div>
-                                                                                <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{item.detail}</div>
-                                                                            </div>
-                                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                                                <div style={{ textAlign: 'right' }}>
-                                                                                    <div style={{ fontWeight: '800', fontSize: '0.9rem' }}>₹{Math.round(item.amount)}</div>
-                                                                                    {item.paidAmount > 0 && (
-                                                                                        <div style={{ fontSize: '0.7rem', fontWeight: '700', color: item.paidAmount >= item.amount ? '#16a34a' : '#d97706' }}>
-                                                                                            {item.paidAmount >= item.amount ? 'Paid ✓' : `Due: ₹${Math.round(item.amount - item.paidAmount)}`}
-                                                                                        </div>
-                                                                                    )}
-                                                                                </div>
-                                                                                {item.amount > 0 && (
-                                                                                    <>
-                                                                                        <button onClick={(e) => openPaymentModal(idx, i, item, e)} className="status-btn" style={{ width: '32px', height: '32px', borderRadius: '50%', border: `2px solid ${item.paidAmount >= item.amount ? '#22c55e' : item.paidAmount > 0 ? '#f59e0b' : '#fca5a5'}`, background: item.paidAmount >= item.amount ? '#dcfce7' : item.paidAmount > 0 ? '#fef3c7' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: item.paidAmount >= item.amount ? '#16a34a' : item.paidAmount > 0 ? '#d97706' : '#fca5a5' }}>
-                                                                                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
-                                                                                        </button>
-                                                                                        <button onClick={(e) => { e.stopPropagation(); sendIndividualReminder(item, h.billMonthName); }} style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#f1f5f9', color: '#64748b', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                                                                                            <Icons.Send />
-                                                                                        </button>
-                                                                                    </>
-                                                                                )}
-                                                                            </div>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                        )}
                                                     </div>
-                                                );
-                                            })}
+                                                    {expandedHistory === idx && (
+                                                        <div className="mt-4 pt-4 border-t border-slate-300 animate-in fade-in slide-in-from-top-1">
+                                                            <div className="text-xs text-slate-500 mb-3 bg-white p-2 rounded border">Water: {h.water} | Motor: {h.motor} | Tanker: {h.tanker}</div>
+                                                            <div className="divide-y divide-slate-200">{h.breakdown.map((item, i) => (
+                                                                <div key={i} className="py-2 flex justify-between items-center">
+                                                                    <div><div className="font-bold text-sm text-slate-700">{item.unit} {item.name}</div><div className="text-[10px] text-slate-400">{item.detail}</div></div>
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className="text-right">
+                                                                            <div className="font-bold text-sm">₹{Math.round(item.amount)}</div>
+                                                                            {item.paidAmount > 0 && <div className={`text-[10px] font-bold ${item.paidAmount >= item.amount ? 'text-green-600' : 'text-orange-500'}`}>{item.paidAmount >= item.amount ? 'Paid' : `Due: ₹${Math.round(item.amount - item.paidAmount)}`}</div>}
+                                                                        </div>
+                                                                        {item.amount > 0 && (
+                                                                            <>
+                                                                                <button onClick={(e) => openPaymentModal(idx, i, item, e)} className={`w-8 h-8 rounded-full flex items-center justify-center border status-btn ${item.paidAmount >= item.amount ? 'bg-green-100 border-green-500 text-green-700' : (item.paidAmount > 0 ? 'bg-orange-100 border-orange-400 text-orange-600' : 'bg-white border-red-200 text-red-300')}`}><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg></button>
+                                                                                <button onClick={(e) => {e.stopPropagation(); sendIndividualReminder(item, h.billMonthName);}} className="p-2 bg-slate-100 text-slate-600 rounded-full hover:bg-slate-200"><Icons.Send /></button>
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            ))}</div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )})}
                                         </>
                                     )}
                                 </div>
                             )}
                         </div>
                     </div>
-
-                    {/* FOOTER */}
-                    <div style={{ textAlign: 'center', marginTop: '24px', opacity: 0.5 }}>
-                        <p style={{ fontSize: '0.78rem', fontWeight: '600', color: '#64748b' }}>Developed by Babu Mani (@ChartWizMani)</p>
-                    </div>
-
-                    {/* HIDDEN RECEIPT */}
+                    
+                    {/* HIDDEN RECEIPT GENERATOR */}
                     <div id="receipt-capture">
                         {result && (
                             <div>
                                 <div className="receipt-header">
-                                    <h1 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#1e293b', margin: '0 0 4px' }}>Bill — {result.billMonthName}</h1>
-                                    <p style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>Monthly Utility Breakdown</p>
+                                    <h1 className="text-2xl font-bold text-slate-800">Bill - {result.billMonthName}</h1>
+                                    <p className="text-sm text-slate-500 font-medium uppercase tracking-wide mt-1">Monthly Utility Breakdown</p>
                                 </div>
-                                <div style={{ background: '#f8fafc', borderRadius: '10px', padding: '16px', marginBottom: '20px', border: '1px solid #e2e8f0' }}>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', textAlign: 'center', marginBottom: '12px' }}>
-                                        <div><div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>Water</div><div style={{ fontWeight: '800', color: '#1e293b' }}>₹{result.water}</div></div>
-                                        <div><div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>Motor</div><div style={{ fontWeight: '800', color: '#1e293b' }}>₹{result.motor}</div></div>
-                                        <div><div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>Tanker</div><div style={{ fontWeight: '800', color: '#1e293b' }}>₹{result.tanker}</div></div>
+
+                                {/* Summary Box */}
+                                <div className="bg-slate-50 rounded-lg p-4 mb-6 border border-slate-200">
+                                    <div className="grid grid-cols-3 gap-2 text-center mb-3 text-xs text-slate-500 font-semibold uppercase tracking-wider">
+                                        <div>Water</div>
+                                        <div>Motor</div>
+                                        <div>Tanker</div>
                                     </div>
-                                    <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span style={{ fontWeight: '700', color: '#64748b', fontSize: '0.9rem' }}>Total Payable</span>
-                                        <span style={{ fontSize: '1.75rem', fontWeight: '800', color: '#2563eb' }}>₹{result.totalBill}</span>
+                                    <div className="grid grid-cols-3 gap-2 text-center mb-4 text-sm font-bold text-slate-700">
+                                        <div>₹{result.water}</div>
+                                        <div>₹{result.motor}</div>
+                                        <div>₹{result.tanker}</div>
                                     </div>
-                                    {result.perPerson > 0 && <div style={{ textAlign: 'center', marginTop: '6px', fontSize: '0.75rem', color: '#94a3b8' }}>Rate: ₹{result.perPerson.toFixed(2)}/head</div>}
+                                    <div className="border-t border-slate-200 pt-3 flex justify-between items-center">
+                                        <span className="text-sm font-bold text-slate-600">Total Payable</span>
+                                        <span className="text-2xl font-bold text-blue-600">₹{result.totalBill}</span>
+                                    </div>
+                                    {result.perPerson > 0 && (
+                                        <div className="text-center mt-2 text-xs text-slate-400">
+                                            Rate per Head: ₹{result.perPerson.toFixed(2)}
+                                        </div>
+                                    )}
                                 </div>
-                                <div>
+
+                                {/* Detailed List */}
+                                <div className="space-y-1">
                                     {result.breakdown.map((item, i) => (
                                         <div key={i} className="receipt-row">
                                             <div>
-                                                <div style={{ fontWeight: '700', color: '#1e293b', fontSize: '0.95rem' }}>
+                                                <div className="font-bold text-slate-700 text-base">
                                                     {item.unit && <span className="unit-badge">{item.unit}</span>}
                                                     {item.name || 'Unknown'}
                                                 </div>
-                                                <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>{item.detail}</div>
+                                                <div className="text-xs text-slate-400 mt-0.5 ml-1">
+                                                    {item.detail}
+                                                </div>
                                             </div>
-                                            <div style={{ fontWeight: '800', fontSize: '1.1rem', color: '#1e293b' }}>₹{Math.round(item.amount)}</div>
+                                            <div className="font-bold text-lg text-slate-800">
+                                                ₹{Math.round(item.amount)}
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
-                                <div style={{ marginTop: '24px', paddingTop: '12px', borderTop: '1px solid #f1f5f9', textAlign: 'center', fontSize: '0.72rem', color: '#cbd5e1' }}>
-                                    Bill Splitter by Babu Mani (@ChartWizMani)
+
+                                {/* Footer Watermark */}
+                                <div className="mt-8 pt-4 border-t border-slate-100 text-center text-xs text-slate-400">
+                                    Bill Splitter Developed by Babu Mani (@ChartWizMani)
                                 </div>
                             </div>
                         )}
                     </div>
+                    
+                    <div className="text-center mt-8 opacity-60"><p className="text-sm font-medium text-slate-500">Developed by Babu Mani (@ChartWizMani)</p></div>
                 </div>
             );
         }
-
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
